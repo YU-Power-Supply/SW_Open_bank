@@ -1,0 +1,26 @@
+import os
+import json
+
+path = 'json path'
+path2 = 'storage path'
+file_list = os.listdir(path)
+file_list_py = [file for file in file_list]
+
+#print(file_list_py)
+
+dict_list = []
+for i in file_list_py:
+    data = ''
+    with open(path+i) as file:
+        json_data = json.load(file)
+        bounding_data = json_data['ObjectInfo']['BoundingBox']
+        for idx, obj in enumerate(bounding_data.values()):
+            if obj['isVisible']:
+                ltx, lty, rbx, rby = map(float, obj['Position'])
+                #conversion x, y, w, h
+                transpos = '{} {} {} {}'.format((ltx + rbx)/2, (lty + rby)/2, rbx - ltx, rby - lty)
+                data += f"{idx} {transpos}\n"
+    print(i[:-4], data)
+    savepath = path2 + i[:-4] + "txt"
+    with open(savepath, "w") as wfile:
+        wfile.write(data)
