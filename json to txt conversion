@@ -1,15 +1,19 @@
 import os
 import json
 
-path = 'json path'
-path2 = 'storage path'
+path = './졸음운전 예방을 위한 운전자 상태 정보 영상/Training/realbox/1.버스/R_202_40_M/'
+path2 = './졸음운전 예방을 위한 운전자 상태 정보 영상/Training/realboximg/1.버스/R_202_40_M/'
 file_list = os.listdir(path)
 file_list_py = [file for file in file_list]
 
 #print(file_list_py)
 
 dict_list = []
+#imglist = ''
 for i in file_list_py:
+    #if i[-1] == 'g':
+    #    imglist += "test/img/" + i + '\n'
+
     data = ''
     with open(path+i) as file:
         json_data = json.load(file)
@@ -18,9 +22,19 @@ for i in file_list_py:
             if obj['isVisible']:
                 ltx, lty, rbx, rby = map(float, obj['Position'])
                 #conversion x, y, w, h
-                transpos = '{} {} {} {}'.format((ltx + rbx)/2, (lty + rby)/2, rbx - ltx, rby - lty)
+                transpos = '{} {} {} {}'.format(((ltx + rbx)/2)/720, ((lty + rby)/2)/1280, (rbx - ltx)/720, (rby - lty)/1280)
                 data += f"{idx} {transpos}\n"
-    print(i[:-4], data)
+    #print(i[:-4], data)
+
+    #데이터 저장부
     savepath = path2 + i[:-4] + "txt"
     with open(savepath, "w") as wfile:
         wfile.write(data)
+    print(savepath)
+
+#print(imglist)
+    
+                
+
+#face, leye, reye, mouth, ciger, phone => class = 6
+#img 720 X 1280 => %
