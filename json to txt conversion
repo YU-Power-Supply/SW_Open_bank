@@ -1,8 +1,8 @@
 import os
 import json
 
-path = './졸음운전 예방을 위한 운전자 상태 정보 영상/Training/realbox/1.버스/R_202_40_M/'
-path2 = './졸음운전 예방을 위한 운전자 상태 정보 영상/Training/realboximg/1.버스/R_202_40_M/'
+path = './001_G1/' # json 파일 경로
+path2 = './anno/' # 데이터 저장 경로
 file_list = os.listdir(path)
 file_list_py = [file for file in file_list]
 
@@ -15,7 +15,7 @@ for i in file_list_py:
     #    imglist += "test/img/" + i + '\n'
 
     data = ''
-    with open(path+i) as file:
+    with open(path+i, encoding='UTF8') as file:
         json_data = json.load(file)
         bounding_data = json_data['ObjectInfo']['BoundingBox']
         for idx, obj in enumerate(bounding_data.values()):
