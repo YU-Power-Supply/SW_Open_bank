@@ -1,8 +1,53 @@
 import os
 import json
 
-path = './001_G1/' # json 파일 경로
-path2 = './anno/' # 데이터 저장 경로
+directory = 'test' # what you want to create directory name
+img_dir = 'img'
+classes = ['face', 'leye', 'reye', 'mouth']
+
+def create_dir(dname):
+    try:
+        if not os.path.exists("./"+directory): # if don't have dir, create
+            os.makedirs("./"+directory)
+    except OSError:
+        print ('Error: Creating directory. ' +  directory)
+ 
+def make_data(dname, classes):
+    with open(f'{dname}/obj.data', "w") as f:
+        strdata = ''
+        data = {'classes = ' : '{}\n'.format(len(classes)),
+        'train = ' : f'{dname}/train.txt\n',
+        'nvalid = ' : f'{dname}/train.txt\n',
+        'names = ' : f'{dname}/obj.names\n',
+        'backup = ' : 'backup/\n'}
+
+        for k, v in data.items():
+            strdata += k + v
+        f.write(strdata)
+
+def make_names(dname, classes):
+
+    print("change [region]        classes = ", len(classes))
+    print("change [convolutional] filters = ", (len(classes)+5)*5)
+    with open(f'{dname}/obj.names', "w") as f:
+        f.write('\n'.join(classes))
+
+def make_train_list(dname, img_dir):
+    route = os.listdir("./"+img_dir)
+    file_list = [img_dir+"/"+file for file in route if file[-1] == 'g'] # collect png, jpg etc..
+
+    with open(f'{dname}/train.txt', "w") as f:
+        f.write('\n'.join(file_list))
+
+
+create_dir(directory)
+make_data(directory, classes)
+make_names(directory, classes)
+make_train_list(directory, img_dir)
+
+'''
+path = ''
+path2 = ''
 file_list = os.listdir(path)
 file_list_py = [file for file in file_list]
 
@@ -15,7 +60,7 @@ for i in file_list_py:
     #    imglist += "test/img/" + i + '\n'
 
     data = ''
-    with open(path+i, encoding='UTF8') as file:
+    with open(path+i) as file:
         json_data = json.load(file)
         bounding_data = json_data['ObjectInfo']['BoundingBox']
         for idx, obj in enumerate(bounding_data.values()):
@@ -38,3 +83,4 @@ for i in file_list_py:
 
 #face, leye, reye, mouth, ciger, phone => class = 6
 #img 720 X 1280 => %
+'''
