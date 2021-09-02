@@ -5,10 +5,10 @@ import json
 
 def create_dir(dname):
     try:
-        if not os.path.exists("./"+directory): # if you don't have same dir, create
-            os.makedirs("./"+directory)
+        if not os.path.exists("./"+dname): # if you don't have same dir, create
+            os.makedirs("./"+dname)
     except OSError:
-        print ('Error: Creating directory. ' +  directory)
+        print ('Error: Creating directory. ' +  dname)
 
 def make_data(dname, classes): #make obj.data file
     with open(f'{dname}/obj.data', "w", encoding='UTF8') as f:
