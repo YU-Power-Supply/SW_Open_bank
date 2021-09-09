@@ -24,16 +24,17 @@ def main(video_path):
         # YOLO 입력
         blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0),
         True, crop=False) #전처리 # !! 416 x 416 anchor box 사이즈인지 확인 ! 작을수록 빠르고 부정확 
-        YOLO_net.setInput(blob) #네트워크 입력
-        outs = YOLO_net.forward(output_layers) 
+        YOLO_net.setInput(blob) #전처리 후 blob을 네트워크에 전달
+        outs = YOLO_net.forward(output_layers) # 정방향 패스가 실행되어 네트워크의 출력으로 예측된 경계 상자 목록을 얻음 이 상자는 신뢰도가 낮은 항목을 필터링 하기 위해 사후 처리 단계를 거침
         
 
         class_ids = []
         confidences = []
         boxes = []
 
-        for out in outs:
-            for detection in out:
+        #신뢰도가 낮은 바운딩 박스를 제거하기 위한 단계
+        for out in outs: #outs = [ [...], [...], [...] ]
+            for detection in out: # len(outs[0]) = 8112, len(outs[1]) = 2028, len(outs[2]) = 507
                 scores = detection[5:] #confidence score 출력 그 앞쪽은 [x][y][w][h][box confidence .. iou값아니면 iou * classconfidence 라고 예상]
                 class_id = np.argmax(scores) 
                 confidence = scores[class_id]
@@ -61,11 +62,11 @@ def main(video_path):
 
                 # 경계상자와 클래스 정보 이미지에 입력
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 5)
-                cv2.putText(frame, label , (x, y - 20), cv2.FONT_ITALIC, 0.5, 
+                cv2.putText(frame, str(label)+"  " +str(confidence) , (x, y - 20), cv2.FONT_ITALIC, 0.5, 
                 (255, 255, 255), 1)
                 
 
-        cv2.imshow("YOLOv3", frame)
+        cv2.imshow("YOLOv2-tiny", frame)
         #비디오 종료
         if cv2.waitKey(100) > 0:
             break
