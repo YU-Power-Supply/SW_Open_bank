@@ -1,5 +1,9 @@
 import cv2
 import numpy as np
+from collections import deque
+
+def motionAnalysis(x1, y1, x2, y2):
+    return 1 if (abs((ord(y2) - ord(y1))) > 1) else 0 
 
 def main(video_path):
     ## version check
@@ -10,13 +14,20 @@ def main(video_path):
     classes = [] # YOLO NETWORK 재구성
     with open("yolo.names", "r") as f:
         classes = [line.strip() for line in f.readlines()]
+<<<<<<< HEAD
+    layer_names = YOLO_net.getLayerNames() # layer의 이름들이 들어가있음 
+=======
     layer_names = YOLO_net.getLayerNames() # layer의 이름들이 들어가있음
+>>>>>>> 671a8c6ae11344784eb1ab6795c110689f7020e1
     output_layers = [layer_names[i[0] - 1] for i in YOLO_net.getUnconnectedOutLayers()]
     
+
+    motionAnalysisByQueue = []
     while True:
         # 웹캠 프레임
         ret, frame = VideoSignal.read()
-        h, w, c = frame.shape # h = 480, w = 640, c = 3
+        frame = cv2.resize(frame, (1280,720)) # w,h
+        h, w, c = frame.shape # h = 720, w = 1280, c = 3
         
         # image resize
         frame_input = cv2.resize(frame, (720,1280))
@@ -36,9 +47,9 @@ def main(video_path):
         for out in outs: #outs = [ [...], [...], [...] ]
             for detection in out: # len(outs[0]) = 8112, len(outs[1]) = 2028, len(outs[2]) = 507
                 scores = detection[5:] #confidence score 출력 그 앞쪽은 [x][y][w][h][box confidence .. iou값아니면 iou * classconfidence 라고 예상]
-                class_id = np.argmax(scores) 
-                confidence = scores[class_id]
-                if confidence > 0.5:
+                class_id = np.argmax(scores) # 각 class에 대한 확률중 가장 높은 것의 인덱스 가져옴
+                confidence = scores[class_id] # 각 클래스 중에 가장 높은 것의 확률
+                if confidence > 0.5: # 컨피던스가 0.5보다 낮은 것 제거
                     # Object detected
                     center_x = int(detection[0] * w)
                     center_y = int(detection[1] * h)
@@ -47,11 +58,14 @@ def main(video_path):
                     # Rectangle coordinate
                     x = int(center_x - dw / 2)
                     y = int(center_y - dh / 2)
-                    boxes.append([x, y, dw, dh])
+                    boxes.append([x, y, dw, dh]) #cv2로 그림그리기위한 좌표값 반환
                     confidences.append(float(confidence))
-                    class_ids.append(class_id)
+                    class_ids.append(class_id) #가장 컨피던스가 높았던 객체의 인덱스 추가
 
-        indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.45, 0.4)
+
+        #print ("boxes : ",boxes, "confidences : ",confidences )
+        indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.45, 0.4) # box indexes
+        #print ("indexes : ", indexes) 
 
 
         for i in range(len(boxes)):
@@ -62,15 +76,26 @@ def main(video_path):
 
                 # 경계상자와 클래스 정보 이미지에 입력
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 5)
-                cv2.putText(frame, str(label)+"  " +str(confidence) , (x, y - 20), cv2.FONT_ITALIC, 0.5, 
+                cv2.putText(frame, str(label)+"["+str((score*1000)//10)+"%"+"]", (x, y-20), cv2.FONT_ITALIC, 0.5, 
                 (255, 255, 255), 1)
-                
+
+                if label == 'person': # 사람이라면 바운딩박스 데이터 추가
+                    motionAnalysisByQueue.append('.'.join([f'{x}',f'{y}',f'{w}',f'{h}']))
+
+                    if (len(motionAnalysisByQueue)==3): # 2프레임 초과시 과거에것 부터 제거
+                        motionAnalysisByQueue.pop(0)
+
+    
+        print("len(motionAnalysisByQueue) : ", len(motionAnalysisByQueue))
+        print("motionAnalysisByQueue : ", motionAnalysisByQueue)
+        
+        if (len(motionAnalysisByQueue)==2) and motionAnalysis(motionAnalysisByQueue[0][0], motionAnalysisByQueue[0][1], motionAnalysisByQueue[1][0], motionAnalysisByQueue[1][1]):
+            cv2.putText(frame, "detectedMovindObject!" , (40, 80), cv2.FONT_ITALIC, 3, (0, 0, 255), 5)
 
         cv2.imshow("YOLOv2-tiny", frame)
         #비디오 종료
         if cv2.waitKey(100) > 0:
             break
-
 
 
 if __name__ == '__main__':
