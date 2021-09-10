@@ -14,11 +14,9 @@ def main(video_path):
     classes = [] # YOLO NETWORK 재구성
     with open("yolo.names", "r") as f:
         classes = [line.strip() for line in f.readlines()]
-<<<<<<< HEAD
     layer_names = YOLO_net.getLayerNames() # layer의 이름들이 들어가있음 
-=======
     layer_names = YOLO_net.getLayerNames() # layer의 이름들이 들어가있음
->>>>>>> 671a8c6ae11344784eb1ab6795c110689f7020e1
+
     output_layers = [layer_names[i[0] - 1] for i in YOLO_net.getUnconnectedOutLayers()]
     
 
