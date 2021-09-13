@@ -6,7 +6,7 @@ def motionAnalysis(x1, y1, x2, y2):
     return 1 if (abs((ord(y2) - ord(y1))) > 1) else 0 
 
 def main(video_path):
-    ## version check
+    ## version check 
     # print(cv2.__version__)
 
     VideoSignal = cv2.VideoCapture(video_path) # 웹캠 신호 받기
@@ -15,6 +15,7 @@ def main(video_path):
     with open("yolo.names", "r") as f:
         classes = [line.strip() for line in f.readlines()]
     layer_names = YOLO_net.getLayerNames() # layer의 이름들이 들어가있음 
+    layer_names = YOLO_net.getLayerNames() # layer의 이름들이 들어가있음
 
     output_layers = [layer_names[i[0] - 1] for i in YOLO_net.getUnconnectedOutLayers()]
     
