@@ -2,7 +2,6 @@
 
 import cv2
 import numpy as np
-from collections import deque
 
 def motionAnalysis(x1, y1, x2, y2):
     return 1 if (abs((ord(y2) - ord(y1))) > 1) else 0 
