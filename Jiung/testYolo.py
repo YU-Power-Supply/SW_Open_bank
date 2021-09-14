@@ -23,7 +23,7 @@ def main(video_path):
     while True:
         # cam_frame
         ret, frame = VideoSignal.read()
-        frame = cv2.resize(frame, (640,480)) # w,h
+        frame = cv2.resize(frame, (640,480)) # frame, w, h
         h, w, c = frame.shape # h = 720, w = 1280, c = 3
 
         # yoloNetwork
