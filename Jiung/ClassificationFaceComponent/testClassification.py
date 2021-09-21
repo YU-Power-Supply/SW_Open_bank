@@ -4,9 +4,9 @@ from imutils import face_utils
 from keras.models import load_model
 
 
-def crop_eye(img, eye_points, IMG_SIZE = (34, 26)):
-  x1, y1 = np.amin(eye_points, axis=0) # return lefttop coordinate
-  x2, y2 = np.amax(eye_points, axis=0) # return rightbottom coordinate
+def CropFaceComponent(img, componentCoordinate, IMG_SIZE = (34, 26)):
+  x1, y1 = np.amin(componentCoordinate, axis=0) # return lefttop coordinate
+  x2, y2 = np.amax(componentCoordinate, axis=0) # return rightbottom coordinate
   cx, cy = int((x1 + x2) / 2), int((y1 + y2) / 2) #return senter coordinate by integer
 
   w = (x2 - x1) * 1.2
@@ -16,16 +16,17 @@ def crop_eye(img, eye_points, IMG_SIZE = (34, 26)):
   min_x, min_y = int(cx - margin_x), int(cy - margin_y)
   max_x, max_y = int(cx + margin_x), int(cy + margin_y)
   
-  eye_rect = np.rint([min_x, min_y, max_x, max_y]).astype(np.int)
+  coordinates = np.rint([min_x, min_y, max_x, max_y]).astype(np.int)
+  componentImage = img[coordinates[1]:coordinates[3], coordinates[0]:coordinates[2]]
 
-  eye_img = img[eye_rect[1]:eye_rect[3], eye_rect[0]:eye_rect[2]]
-
-  return eye_img, eye_rect
+  return componentImage, coordinates
 
 
 def main():
 
-  IMG_SIZE = (34, 26)
+  trainedEyeSize = (34, 26)
+  trainedMouthSize = (70, 50) # Temporary Value
+
 
   detector = dlib.get_frontal_face_detector()
   predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
@@ -55,31 +56,41 @@ def main():
       shapes = predictor(gray_img, face)
       shapes = face_utils.shape_to_np(shapes)
 
-      leftEyeImage, leftEyeCoordinate = crop_eye(gray_img, eye_points=shapes[36:42]) # Coordinate = 좌표 , 구성 = [[min x] [max x] [min y] [max y]]
-      rightEyeImage, rightEyeCoordinate = crop_eye(gray_img, eye_points=shapes[42:48])
+      leftEyeImage, leftEyeCoordinate = CropFaceComponent(img = gray_img, componentCoordinate=shapes[36:42]) # Coordinate = 좌표 , 구성 = [[min x] [max x] [min y] [max y]]
+      rightEyeImage, rightEyeCoordinate = CropFaceComponent(img = gray_img, componentCoordinate=shapes[42:48])
+      mouthImage, mouthCoordinate = CropFaceComponent(img = gray_img, componentCoordinate=shapes[48:60])
 
-      leftEyeImage = cv2.resize(leftEyeImage, dsize=IMG_SIZE)
-      rightEyeImage = cv2.resize(rightEyeImage, dsize=IMG_SIZE)
-      rightEyeImage = cv2.flip(rightEyeImage, flipCode=1)
+      leftEyeImage = cv2.resize(leftEyeImage, dsize=trainedEyeSize)
+      rightEyeImage = cv2.resize(rightEyeImage, dsize=trainedMouthSize)
+      rightEyeImage = cv2.flip(rightEyeImage, flipCode=1) # 물어보기
+      mouthImage = cv2.resize(mouthImage, dsize=trainedMouthSize)
 
-      cv2.imshow('leftEyeImage', leftEyeImage)
-      cv2.imshow('rightEyeImage', rightEyeImage)
+      cv2.imshow('LeftEyeImage', leftEyeImage)
+      cv2.imshow('RightEyeImage', rightEyeImage)
+      cv2.imshow('MouthImage', mouthImage)
 
-      putLeftEye = leftEyeImage.copy().reshape((1, IMG_SIZE[1], IMG_SIZE[0], 1)).astype(np.float32) / 255.
-      putRightEye = rightEyeImage.copy().reshape((1, IMG_SIZE[1], IMG_SIZE[0], 1)).astype(np.float32) / 255.
+      putLeftEyeInModel = leftEyeImage.copy().reshape((1, trainedEyeSize[1], trainedEyeSize[0], 1)).astype(np.float32) / 255.
+      putRightEyeInModel = rightEyeImage.copy().reshape((1, trainedEyeSize[1], trainedEyeSize[0], 1)).astype(np.float32) / 255.
+      putMouthInModel = mouthImage.copy().reshape((1, trainedMouthSize[1], trainedMouthSize[0], 1)).astype(np.float32) / 255.
 
-      pred_l = model.predict(putLeftEye)
-      pred_r = model.predict(putRightEye)
+      predLeftEye = model.predict(putLeftEyeInModel)
+      predRightEye = model.predict(putRightEyeInModel)
+      predMouth = model.predict(putMouthInModel)
+      
 
       # visualize
-      state_l = f'O [{int(pred_l*100)}%]' if pred_l > 0.1 else f'- [{int(pred_l*100)}%]'
-      state_r = f'O [{int(pred_r*100)}%]' if pred_r > 0.1 else f'- [{int(pred_r*100)}%]'
+      stateLeftEye = f'O [{int(predLeftEye*100)}%]' if predLeftEye > 0.1 else f'- [{int(predLeftEye*100)}%]'
+      stateRightEye = f'O [{int(predRightEye*100)}%]' if predRightEye > 0.1 else f'- [{int(predRightEye*100)}%]'
+      stateMouth = f'O [{int(predRightEye*100)}%]' if predRightEye > 0.1 else f'- [{int(predRightEye*100)}%]'
 
       cv2.rectangle(img, pt1=tuple(leftEyeCoordinate[0:2]), pt2=tuple(leftEyeCoordinate[2:4]), color=(255,255,255), thickness=2)
       cv2.rectangle(img, pt1=tuple(rightEyeCoordinate[0:2]), pt2=tuple(rightEyeCoordinate[2:4]), color=(255,255,255), thickness=2)
+      cv2.rectangle(img, pt1=tuple(mouthCoordinate[0:2]), pt2=tuple(mouthCoordinate[2:4]), color=(255,255,255), thickness=2)
 
-      cv2.putText(img, state_l, tuple(leftEyeCoordinate[0:2]), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
-      cv2.putText(img, state_r, tuple(rightEyeCoordinate[0:2]), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+      cv2.putText(img, stateLeftEye, tuple(leftEyeCoordinate[0:2]), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+      cv2.putText(img, stateRightEye, tuple(rightEyeCoordinate[0:2]), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+      cv2.putText(img, stateMouth, tuple(mouthCoordinate[0:2]), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+
 
     cv2.imshow('result', img)
     if cv2.waitKey(1) == ord('q'):
