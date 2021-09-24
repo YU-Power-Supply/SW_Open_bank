@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import pandas as pd
+
 import matplotlib.pyplot as plt
 import random
 import sys
@@ -24,7 +24,7 @@ def train():
 
     model = Sequential()
 
-    model.add( Flatten( input_shape= (60,68)))
+    model.add( Flatten( input_shape= (68,60)))
     model.add( Dense( units= 64,  activation='relu') )
     model.add( Dense( units= 10,  activation='softmax') )
     model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
@@ -52,3 +52,6 @@ if __name__=="__main__":
         if sys.argv[2] ==f"{model}":
             if sys.argv[3] == f"{testPointPerFrame}":
                 test(model,testPointPerFrame)
+
+    else :
+        print("잘못 된 명령어 입니다.")
