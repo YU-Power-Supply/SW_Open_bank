@@ -20,7 +20,7 @@ def train(savePath):
 
     motionNum = 100
     PointPerFrame = tf.constant([[[random.randrange(1, 10) for _ in range(keyPointNum)] for _ in range(frameNum)] for _ in range(motionNum)], dtype = tf.float32) # prame per points
-    groundTruth = tf.constant([ random.randrange(0, 2) for _ in range(motionNum)]) # sleep = 1, didn`t sleep = 0
+    groundTruth = tf.constant([ [random.randrange(0, 2) ]for _ in range(motionNum)]) # sleep = 1, didn`t sleep = 0
 
 
     ## Training Model Define
@@ -30,7 +30,7 @@ def train(savePath):
     model.add( Flatten( input_shape= (frameNum,keyPointNum)))
     model.add( Dense( units= 64,  activation='relu') )
     model.add( Dense( units= 10,  activation='relu') )
-    model.add( Dense( units= 1,  activation='sigmoid') )
+    # model.add( Dense( units= 1,  activation='sigmoid') )
     model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
                   metrics=['acc'] )  # ! loo종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
 
