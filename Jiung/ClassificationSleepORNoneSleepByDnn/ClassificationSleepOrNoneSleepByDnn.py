@@ -11,7 +11,7 @@ from tensorflow.keras.optimizers import Adam
 
 from tensorflow.keras.datasets.fashion_mnist import load_data
 
-def train():
+def train(savePath):
     frameNum = 60
     keyPointNum = 68
 
@@ -32,7 +32,7 @@ def train():
 
     ## Moddel Training
     h = model.fit( PointPerFrame, groundTruth, epochs = 100)
-
+    model.save(savePath)
 
 def test(model, testPointPerFrame):
     model.predict(testPointPerFrame).argmax(axis = 1)
@@ -41,14 +41,15 @@ if __name__=="__main__":
 
     model = ""
     testPointPerFrame = ""
+    savePath = ""
 
     if len(sys.argv) == 1:
         print("명령 프롬프트로 실행하세요")
         exit(0)
     
-    elif sys.argv[1] == "train":
-        sys.argv[2]
-        train()
+    elif sys.argv[1] == "train": # train save_path
+        savePath = sys.argv[2]
+        train(savePath)
     elif sys.argv[1] == "test": # test model_path testFrame_path
         model = f"{sys.argv[2]}"
         testPointPerFrame = f"{sys.argv[3]}" 
