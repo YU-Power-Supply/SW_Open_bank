@@ -9,7 +9,8 @@ from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPool2D
 from tensorflow.keras import Sequential
 from tensorflow.keras.optimizers import Adam
 
-from tensorflow.keras.datasets.fashion_mnist import load_data
+from tensorflow.keras.models import load_data
+
 
 def train(savePath):
     frameNum = 60
@@ -33,9 +34,14 @@ def train(savePath):
     ## Moddel Training
     h = model.fit( PointPerFrame, groundTruth, epochs = 100)
     model.save(savePath)
+    model.summary()
 
 def test(model, testPointPerFrame):
-    model.predict(testPointPerFrame).argmax(axis = 1)
+    model = load_model(model)
+    model.summary()
+
+    # model.predict(testPointPerFrame).argmax(axis = 1)
+
 
 if __name__=="__main__":
 
