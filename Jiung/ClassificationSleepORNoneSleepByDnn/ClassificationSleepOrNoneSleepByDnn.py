@@ -3,6 +3,7 @@ import numpy as np
 import cv2, dlib
 from imutils import face_utils
 
+import time
 import random
 import sys
 import os
@@ -57,6 +58,7 @@ def test(model):
     cap = cv2.VideoCapture(0)
 
     testPointPerFrames = []
+    startTime = time.time()
     while cap.isOpened():
         ret, frame = cap.read()
 
@@ -84,7 +86,7 @@ def test(model):
             testPointPerFrames.append(pointFrame)
             print("Counted Frame Number", len(testPointPerFrames))
         
-        if len(testPointPerFrames) == 60:
+        if len(testPointPerFrames) == 30:
             # print(testPointPerFrames)
             testPointPerFrames = tf.constant(testPointPerFrames, dtype = tf.float32)
             
@@ -94,6 +96,9 @@ def test(model):
             # print(testPointPerFrames.shape) # reshaped Dims
 
             print(model.predict(testPointPerFrames))
+            endTime = time.time()
+            print("Time: " ,endTime - startTime)
+            
             testPointPerFrames = []
 
         
