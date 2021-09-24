@@ -15,8 +15,8 @@ from tensorflow.keras.models import load_model
 
 
 def train(savePath):
-    frameNum = 60
-    keyPointNum = 68
+    frameNum = 30
+    keyPointNum = 136
 
     motionNum = 100
     PointPerFrame = tf.constant([[[random.randrange(1, 10) for _ in range(keyPointNum)] for _ in range(frameNum)] for _ in range(motionNum)], dtype = tf.float32) # prame per points
@@ -27,9 +27,10 @@ def train(savePath):
 
     model = Sequential()
 
-    model.add( Flatten( input_shape= (60,68)))
+    model.add( Flatten( input_shape= (frameNum,keyPointNum)))
     model.add( Dense( units= 64,  activation='relu') )
-    model.add( Dense( units= 10,  activation='softmax') )
+    model.add( Dense( units= 10,  activation='relu') )
+    model.add( Dense( units= 1,  activation='sigmoid') )
     model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
                   metrics=['acc'] )  # ! loo종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
 
@@ -44,9 +45,9 @@ def train(savePath):
 def test(model):
 
     model = load_model(model)
-    print("\n")
+    print("")
     model.summary()
-    print("\n")
+    print("")
 
     detector = dlib.get_frontal_face_detector()
     predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
@@ -81,10 +82,18 @@ def test(model):
 
         if len(pointFrame) == 136: # landmark * 2 = 136
             testPointPerFrames.append(pointFrame)
-            
-        if len(testPointPerFrames) == 10:
+            print("Counted Frame Number", len(testPointPerFrames))
+        
+        if len(testPointPerFrames) == 60:
+            # print(testPointPerFrames)
             testPointPerFrames = tf.constant(testPointPerFrames, dtype = tf.float32)
-            model.predict(testPointPerFrames).argmax(axis = 1)
+            
+            # print(testPointPerFrames.shape) # Dims
+            testPointPerFrames = tf.expand_dims(testPointPerFrames, axis=0)
+            
+            # print(testPointPerFrames.shape) # reshaped Dims
+
+            print(model.predict(testPointPerFrames))
             testPointPerFrames = []
 
         
