@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 import sys
+import os
 
 from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPool2D
 from tensorflow.keras import Sequential
@@ -36,7 +37,12 @@ def train(savePath):
     model.save(savePath)
     model.summary()
 
-def test(model, testPointPerFrame):
+def test(model, testPointPerFramePath):
+    
+    with open(f"{testPointPerFramePath}", "r") as f:
+        print(f.readline())
+        f.close()
+        
     model = load_model(model)
     model.summary()
 
@@ -58,8 +64,9 @@ if __name__=="__main__":
         train(savePath)
     elif sys.argv[1] == "test": # test model_path testFrame_path
         model = f"{sys.argv[2]}"
-        testPointPerFrame = f"{sys.argv[3]}" 
-        test(model,testPointPerFrame)
+        testPointPerFramePath = f"{sys.argv[3]}"
+
+        test(model,testPointPerFramePath)
 
     else :
         print("잘못 된 명령어 입니다.")
