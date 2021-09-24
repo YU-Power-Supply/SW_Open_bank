@@ -47,11 +47,12 @@ if __name__=="__main__":
         exit(0)
     
     elif sys.argv[1] == "train":
+        sys.argv[2]
         train()
-    elif sys.argv[1] == "test":
-        if sys.argv[2] ==f"{model}":
-            if sys.argv[3] == f"{testPointPerFrame}":
-                test(model,testPointPerFrame)
+    elif sys.argv[1] == "test": # test model_path testFrame_path
+        model = f"{sys.argv[2]}"
+        testPointPerFrame = f"{sys.argv[3]}" 
+        test(model,testPointPerFrame)
 
     else :
         print("잘못 된 명령어 입니다.")
