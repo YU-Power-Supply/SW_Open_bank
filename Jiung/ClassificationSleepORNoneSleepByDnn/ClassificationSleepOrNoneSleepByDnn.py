@@ -10,7 +10,7 @@ from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPool2D
 from tensorflow.keras import Sequential
 from tensorflow.keras.optimizers import Adam
 
-from tensorflow.keras.models import load_data
+from tensorflow.keras.models import load_model
 
 
 def train(savePath):
