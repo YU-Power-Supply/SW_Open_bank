@@ -40,13 +40,13 @@ def train(savePath):
 def test(model, testPointPerFramePath):
     
     with open(f"{testPointPerFramePath}", "r") as f:
-        print(f.readline())
+        testPointPerFramePath = tf.constant(f.readline(), dtype = tf.float32)
         f.close()
         
     model = load_model(model)
     model.summary()
 
-    # model.predict(testPointPerFrame).argmax(axis = 1)
+    model.predict(testPointPerFrame)
 
 
 if __name__=="__main__":
