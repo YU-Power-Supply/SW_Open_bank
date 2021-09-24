@@ -30,7 +30,9 @@ def train(savePath):
 
     model.add( Flatten( input_shape= (frameNum,keyPointNum)))
     model.add( Dense( units= 64,  activation='relu') )
-    model.add( Dense( units= 10,  activation='relu') )
+    model.add( Dense( units= 10,  activation='softmax') )
+    
+    # model.add( Dense( units= 10,  activation='relu') )
     # model.add( Dense( units= 1,  activation='sigmoid') )
     model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
                   metrics=['acc'] )  # ! loo종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
