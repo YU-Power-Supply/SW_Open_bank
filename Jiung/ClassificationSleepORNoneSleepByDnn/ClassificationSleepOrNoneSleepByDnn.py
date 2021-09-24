@@ -39,10 +39,16 @@ def test(model, testPointPerFrame):
 
 if __name__=="__main__":
 
+    model = ""
+    testPointPerFrame = ""
+
     if len(sys.argv) == 1:
         print("명령 프롬프트로 실행하세요")
         exit(0)
     
     elif sys.argv[1] == "train":
         train()
-    elif sys.argv[1] == "test": 
+    elif sys.argv[1] == "test":
+        if sys.argv[2] ==f"{model}":
+            if sys.argv[3] == f"{testPointPerFrame}":
+                test(model,testPointPerFrame)
