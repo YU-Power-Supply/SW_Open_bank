@@ -1,10 +1,12 @@
 # SW_Open_bank
 
-## darknet_setting.py
+## YOLO 
+
+### darknet_setting.py
 ***
 ⇒ [[AI허브] 졸음운전 예방 데이터](http://aihub.or.kr/aidata/30744) 다음 데이터셋에 맞춰 제작된 프로그램입니다.
 
-### setting values
+#### setting values
 
 1. directory : 다크넷 초기 세팅파일을(~.data ~.names .etc) 묶어서 저장할 디렉토리 명을 지정합니다.
 

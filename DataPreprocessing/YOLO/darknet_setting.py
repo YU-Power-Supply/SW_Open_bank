@@ -80,6 +80,15 @@ def json_to_txt(json_path, save_path, classes):
                     #conversion x, y, w, h
                     transpos = '{} {} {} {}'.format(((ltx + rbx)/2)/720, ((lty + rby)/2)/1280, (rbx - ltx)/720, (rby - lty)/1280)
                     data += f"{classes[obj]} {transpos}\n"
+                    
+                    '''
+                    # for newclasses
+                    transpos = '{} {} {} {}'.format(((ltx + rbx)/2)/800, ((lty + rby)/2)/1280, (rbx - ltx)/800, (rby - lty)/1280)
+                    if 1 <= classes[obj] <= 3 and bounding_data[obj]['Opened']:
+                        data += f"{classes[obj]+5} {transpos}\n"
+                    else:
+                        data += f"{classes[obj]} {transpos}\n"
+                    '''
 
         #데이터 저장부
         savepath = save_path + i[:-4] + "txt" # json -> txt
@@ -95,9 +104,10 @@ def remove_txt(txtpath):  # when you want to remove txt files
 if __name__ == '__main__':
     
     directory = 'custom/' # what you want to create directory name
-    img_dir = 'D:/dataset/Training/customboximg/' #route of img_dir
-    json_dir = 'D:/dataset/Training/custombox/'    #route of json_dir
+    img_dir = 'D:/dataset/Training/realboximg/4.truck/' #route of img_dir
+    json_dir = 'D:/dataset/Training/realbox/4.truck/'    #route of json_dir
     classes = {'Face' : 0, 'Leye' : 1, 'Reye' : 2, 'Mouth' : 3, 'Phone' : 4, 'Cigar' : 5}
+    newclasses = {'Face' : 0, 'Leye_close' : 1, 'Reye_close' : 2, 'Mouth_close' : 3, 'Phone' : 4, 'Cigar' : 5, 'Leye_open' : 6,'Reye_open' : 7, 'Mouth_open' : 8} #leyeopen reyeopen close close mouth open close
     
     img_dir_list = rename_dir(img_dir)
     json_dir_list = rename_dir(json_dir)
