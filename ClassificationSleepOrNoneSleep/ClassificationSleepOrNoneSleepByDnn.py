@@ -14,6 +14,8 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import load_model
 
 
+print("dlib", dlib.__version__, "numpy", np.__version__)
+
 
 def train(savePath):
     frameNum = 30
@@ -30,12 +32,10 @@ def train(savePath):
 
     model.add( Flatten( input_shape= (frameNum,keyPointNum)))
     model.add( Dense( units= 64,  activation='relu') )
-    model.add( Dense( units= 10,  activation='softmax') )
-    
-    # model.add( Dense( units= 10,  activation='relu') )
+    model.add( Dense( units= 10,  activation='relu') )
     # model.add( Dense( units= 1,  activation='sigmoid') )
     model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
-                  metrics=['acc'] )  # ! loo종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
+                  metrics=['acc'] )  # ! gradinet descent 종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
 
     ## Moddel Training
     h = model.fit( PointPerFrame, groundTruth, epochs = 100)
@@ -126,7 +126,6 @@ if __name__=="__main__":
         train(savePath)
     elif sys.argv[1] == "test": # test model_path 
         model = f"{sys.argv[2]}"
-
         test(model)
 
     else :
