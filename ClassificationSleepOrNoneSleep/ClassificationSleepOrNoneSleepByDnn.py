@@ -3,10 +3,7 @@ import numpy as np
 import cv2, dlib
 from imutils import face_utils
 
-import time
-import random
-import sys
-import os
+import time, random, sys, os, copy
 
 from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPool2D
 from tensorflow.keras import Sequential
@@ -14,33 +11,70 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import load_model
 
 
-print("dlib", dlib.__version__, "numpy", np.__version__)
+# print("dlib", dlib.__version__, "numpy", np.__version__)
 
 
-def train(savePath):
-    frameNum = 30
-    keyPointNum = 136
+def train(sleepPath, nonSleepPath, savePath):
+    detector = dlib.get_frontal_face_detector()
+    predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
+    keyPointModel = ('models/2018_12_17_22_58_35.h5')
 
-    motionNum = 100
-    PointPerFrame = tf.constant([[[random.randrange(1, 10) for _ in range(keyPointNum)] for _ in range(frameNum)] for _ in range(motionNum)], dtype = tf.float32) # prame per points
-    groundTruth = tf.constant([ [random.randrange(0, 2) ]for _ in range(motionNum)]) # sleep = 1, didn`t sleep = 0
+    pointPerFramePerMotin = []
+    groundTruth = []
+    
+    for dir in os.listdir(sleepPath):
+        pointPerFrame = []
+        cnt = 0 # 얼마나 얼굴이 detect되지 않나 카운트
+        for file in os.listdir(f"{sleepPath}/{dir}"):
+            img = cv2.imread(f'{sleepPath}/{dir}/{file}')
+            faces = detector(img, 1)
+            points = []
 
+            if (len(faces) == 0) : #얼굴이 detect되지 않았을 때
+                cnt += 1
 
-    ## Training Model Define
+            for face in faces:
+                shapes = predictor(img, face)
+                shapes = face_utils.shape_to_np(shapes)
+                for keyPointXY in shapes:
+                    for keyPoint in keyPointXY:
+                        points.append(keyPoint)
+                        if(len(points) == 136):
+                            pointPerFrame.append(points)
+                            if(len(pointPerFrame) == 25) :
+                                pointPerFramePerMotin.append(copy.deepcopy(pointPerFrame))
+                            
+        for _ in range(cnt): # detect 되지 않은것이 있을 때
+            pointPerFramePerMotin.append(copy.deepcopy(pointPerFramePerMotin[-1]))
+        
+                        
+            
 
-    model = Sequential()
+                   
 
-    model.add( Flatten( input_shape= (frameNum,keyPointNum)))
-    model.add( Dense( units= 64,  activation='relu') )
-    model.add( Dense( units= 10,  activation='relu') )
-    # model.add( Dense( units= 1,  activation='sigmoid') )
-    model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
-                  metrics=['acc'] )  # ! gradinet descent 종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
-
-    ## Moddel Training
-    h = model.fit( PointPerFrame, groundTruth, epochs = 100)
-    model.save(savePath)
-    model.summary()
+    # frameNum = 25
+    # keyPointNum = 136
+# 
+    # pointPerFrames = tf.constant([pointPerFrames], dtype = tf.float32) # prame per points
+# 
+    # groundTruth = tf.constant([groundTruth], dtype = tf.float32) # sleep = 1, didn`t sleep = 0
+# 
+# 
+    # ## Training Model Define
+# 
+    # model = Sequential()
+# 
+    # model.add( Flatten( input_shape= (frameNum,keyPointNum)))
+    # model.add( Dense( units= 64,  activation='relu') )
+    # model.add( Dense( units= 10,  activation='relu') )
+    # # model.add( Dense( units= 1,  activation='sigmoid') )
+    # model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
+    #               metrics=['acc'] )  # ! gradinet descent 종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
+# 
+    # ## Moddel Training
+    # h = model.fit( pointPerFrame, groundTruth, epochs = 100)
+    # model.save(savePath)
+    # model.summary()
     
 
     
@@ -109,8 +143,20 @@ def test(model):
         cv2.imshow('result', img)
         if cv2.waitKey(1) == ord('q'):
             break
+                
+                
+def dataPreprocessing(dirPath, sleepPath, nonSleepPath):
+    sleepScenarios = ["02", "03", "09", "10", "16", "17", "21", "22", "28", "29"]
+
+    for dir in os.listdir(dirPath):
+        if (dir[11:13]) in sleepScenarios:
+            os.rename(f"{dirPath}/{dir}", f"{sleepPath}/{dir}")
+        else:
+            os.rename(f"{dirPath}/{dir}", f"{nonSleepPath}/{dir}")
+
     
-    
+
+
 
 if __name__=="__main__":
 
@@ -121,12 +167,13 @@ if __name__=="__main__":
         print("명령 프롬프트로 실행하세요")
         exit(0)
     
-    elif sys.argv[1] == "train": # train save_path
-        savePath = sys.argv[2]
-        train(savePath)
-    elif sys.argv[1] == "test": # test model_path 
+    elif sys.argv[1] == "train": # [train] [save_path]
+        train(sys.argv[2], sys.argv[3], sys.argv[4])
+    elif sys.argv[1] == "test": # [test] [model_path] 
         model = f"{sys.argv[2]}"
         test(model)
+    elif sys.argv[1] == 'data': # [data] [dirPath] [saveSleepPath] [saveNonSleepPath]
+        dataPreprocessing(sys.argv[2], sys.argv[3], sys.argv[4])
 
     else :
         print("잘못 된 명령어 입니다.")
