@@ -22,9 +22,11 @@ def train(sleepPath, nonSleepPath, savePath):
     pointPerFramePerMotin = []
     groundTruth = []
     
-    for dir in os.listdir(sleepPath):
+    for dir in os.listdir(sleepPath): # sleep images
         pointPerFrame = []
         cnt = 0 # 얼마나 얼굴이 detect되지 않나 카운트
+
+        groundTruth.append(1)
         for file in os.listdir(f"{sleepPath}/{dir}"):
             img = cv2.imread(f'{sleepPath}/{dir}/{file}')
             faces = detector(img, 1)
@@ -47,37 +49,61 @@ def train(sleepPath, nonSleepPath, savePath):
         for _ in range(cnt): # detect 되지 않은것이 있을 때
             pointPerFramePerMotin.append(copy.deepcopy(pointPerFramePerMotin[-1]))
         
-                        
+
+    for dir in os.listdir(nonSleepPath): # nonsleep images
+        pointPerFrame = []
+        cnt = 0 
+        groundTruth.append(0)
+        for file in os.listdir(f"{sleepPath}/{dir}"):
+            img = cv2.imread(f'{sleepPath}/{dir}/{file}')
+            faces = detector(img, 1)
+            points = []
+
+            if (len(faces) == 0) : 
+                cnt += 1
+
+            for face in faces:
+                shapes = predictor(img, face)
+                shapes = face_utils.shape_to_np(shapes)
+                for keyPointXY in shapes:
+                    for keyPoint in keyPointXY:
+                        points.append(keyPoint)
+                        if(len(points) == 136):
+                            pointPerFrame.append(points)
+                            if(len(pointPerFrame) == 25) :
+                                pointPerFramePerMotin.append(copy.deepcopy(pointPerFrame))
+                            
+        for _ in range(cnt): 
+            pointPerFramePerMotin.append(copy.deepcopy(pointPerFramePerMotin[-1]))                   
             
 
                    
 
-    # frameNum = 25
-    # keyPointNum = 136
-# 
-    # pointPerFrames = tf.constant([pointPerFrames], dtype = tf.float32) # prame per points
-# 
-    # groundTruth = tf.constant([groundTruth], dtype = tf.float32) # sleep = 1, didn`t sleep = 0
-# 
-# 
-    # ## Training Model Define
-# 
-    # model = Sequential()
-# 
-    # model.add( Flatten( input_shape= (frameNum,keyPointNum)))
-    # model.add( Dense( units= 64,  activation='relu') )
-    # model.add( Dense( units= 10,  activation='relu') )
-    # # model.add( Dense( units= 1,  activation='sigmoid') )
-    # model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
-    #               metrics=['acc'] )  # ! gradinet descent 종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
-# 
-    # ## Moddel Training
-    # h = model.fit( pointPerFrame, groundTruth, epochs = 100)
-    # model.save(savePath)
-    # model.summary()
-    
+    frameNum = 25
+    keyPointNum = 136
 
-    
+    pointPerFramePerMotin = tf.constant([pointPerFramePerMotin], dtype = tf.float32) # prame per points
+
+    groundTruth = tf.constant([groundTruth], dtype = tf.float32) # sleep = 1, didn`t sleep = 0
+
+
+    # Training Model Define
+
+    model = Sequential()
+
+    model.add( Flatten( input_shape= (frameNum,keyPointNum)))
+    model.add( Dense( units= 64,  activation='relu') )
+    model.add( Dense( units= 10,  activation='relu') )
+    # model.add( Dense( units= 1,  activation='sigmoid') )
+    model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
+                  metrics=['acc'] )  # ! gradinet descent 종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
+
+    ## Moddel Training
+    h = model.fit( pointPerFrame, groundTruth, epochs = 100)
+    model.save(savePath)
+    model.summary()
+
+
 
 def test(model):
 
@@ -167,7 +193,7 @@ if __name__=="__main__":
         print("명령 프롬프트로 실행하세요")
         exit(0)
     
-    elif sys.argv[1] == "train": # [train] [save_path]
+    elif sys.argv[1] == "train": # [train] [sleepPath] [nonSleepPath] [save_path]
         train(sys.argv[2], sys.argv[3], sys.argv[4])
     elif sys.argv[1] == "test": # [test] [model_path] 
         model = f"{sys.argv[2]}"
