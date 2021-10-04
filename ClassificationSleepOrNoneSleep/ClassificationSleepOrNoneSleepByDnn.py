@@ -5,7 +5,7 @@ from imutils import face_utils
 
 import time, random, sys, os, copy
 
-from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPool2D
+from tensorflow.keras.layers import Dense, Dropout , Flatten, Conv2D, MaxPool2D
 from tensorflow.keras import Sequential
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import load_model
@@ -19,12 +19,19 @@ def train(sleepPath, nonSleepPath, savePath):
     predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
     keyPointModel = ('models/2018_12_17_22_58_35.h5')
 
-    pointPerFramePerMotin = []
+    pointPerFramePerMotion = []
     groundTruth = []
     
+    imgCnt = 0
+    motionCnt = 0
+
+    frameNum = 25
+    keyPointNum = 136
+
     for dir in os.listdir(sleepPath): # sleep images
         pointPerFrame = []
         cnt = 0 # 얼마나 얼굴이 detect되지 않나 카운트
+        motionCnt += 1
 
         groundTruth.append(1)
         for file in os.listdir(f"{sleepPath}/{dir}"):
@@ -34,6 +41,7 @@ def train(sleepPath, nonSleepPath, savePath):
 
             if (len(faces) == 0) : #얼굴이 detect되지 않았을 때
                 cnt += 1
+                print(f"img : {file}, ** couldn`t detect present face **")
 
             for face in faces:
                 shapes = predictor(img, face)
@@ -41,26 +49,36 @@ def train(sleepPath, nonSleepPath, savePath):
                 for keyPointXY in shapes:
                     for keyPoint in keyPointXY:
                         points.append(keyPoint)
-                        if(len(points) == 136):
+                        if(len(points) == keyPointNum):
+                            imgCnt += 1
+                            print(f" img : {file} , The number of completed [sleep image] : {imgCnt} / 41053") # image checker
                             pointPerFrame.append(points)
-                            if(len(pointPerFrame) == 25) :
-                                pointPerFramePerMotin.append(copy.deepcopy(pointPerFrame))
-                            
-        for _ in range(cnt): # detect 되지 않은것이 있을 때
-            pointPerFramePerMotin.append(copy.deepcopy(pointPerFramePerMotin[-1]))
         
+                                            
+        
+        for _ in range(frameNum - len(pointPerFrame)): # detect 되지 않은것이 있을 때
+            pointPerFrame.append(pointPerFrame[-1])
+            imgCnt += 1
+        pointPerFramePerMotion.append(pointPerFrame)
+        print("pointPerFrame : ", len(pointPerFrame))
+        print(f"The number of completed [sleep] motion : {motionCnt} / 1658") # motion checker
+    
+
 
     for dir in os.listdir(nonSleepPath): # nonsleep images
         pointPerFrame = []
-        cnt = 0 
+        cnt = 0 # 얼마나 얼굴이 detect되지 않나 카운트
+        motionCnt += 1
+
         groundTruth.append(0)
-        for file in os.listdir(f"{sleepPath}/{dir}"):
-            img = cv2.imread(f'{sleepPath}/{dir}/{file}')
+        for file in os.listdir(f"{nonSleepPath}/{dir}"):
+            img = cv2.imread(f'{nonSleepPath}/{dir}/{file}')
             faces = detector(img, 1)
             points = []
 
             if (len(faces) == 0) : 
                 cnt += 1
+                print(f"img : {file}, ** couldn`t detect present face **")
 
             for face in faces:
                 shapes = predictor(img, face)
@@ -69,37 +87,57 @@ def train(sleepPath, nonSleepPath, savePath):
                     for keyPoint in keyPointXY:
                         points.append(keyPoint)
                         if(len(points) == 136):
+                            imgCnt += 1
+                            print(f" img : {file} , The number of completed [non sleep] image : {imgCnt} / 41053") # image checker
                             pointPerFrame.append(points)
-                            if(len(pointPerFrame) == 25) :
-                                pointPerFramePerMotin.append(copy.deepcopy(pointPerFrame))
-                            
-        for _ in range(cnt): 
-            pointPerFramePerMotin.append(copy.deepcopy(pointPerFramePerMotin[-1]))                   
             
 
+        for _ in range(25 - len(pointPerFrame)): # detect 되지 않은것이 있을 때
+            pointPerFrame.append(pointPerFrame[-1])
+            imgCnt += 1
+        pointPerFramePerMotion.append(pointPerFrame)
+        print("pointPerFrame : ", len(pointPerFrame))
+        print(f"The number of completed [nonsleep] motion : {motionCnt} / 1658") # motion checker
+    
+    
                    
 
-    frameNum = 25
-    keyPointNum = 136
+    pointPerFramePerMotion = tf.constant(pointPerFramePerMotion, dtype = tf.float32) # prame per points
+    print(f"complete convert to tensor , total {cnt} images aren`t detected ")
+    print("pointPerFrameMotion`s dims : ", tf.shape(pointPerFramePerMotion))
 
-    pointPerFramePerMotin = tf.constant([pointPerFramePerMotin], dtype = tf.float32) # prame per points
+    groundTruth = tf.constant(groundTruth, dtype = tf.float32) # sleep = 1, didn`t sleep = 0
+    print("groundTruth`s dims : ", tf.shape(groundTruth))
 
-    groundTruth = tf.constant([groundTruth], dtype = tf.float32) # sleep = 1, didn`t sleep = 0
+    '''
+    testX = tf.constant([[[random.randrange(1, 10) for _ in range(keyPointNum)] for _ in range(frameNum)] for _ in range(2)], dtype = tf.float32) # prame per points
+    testY = tf.constant([ [random.randrange(0, 2) ]for _ in range(2)]) # sleep = 1, didn`t sleep = 0
+    
+    print(tf.shape(testX))
+    print(tf.shape(testY))
+    '''
+
+
+   
 
 
     # Training Model Define
+    
+    model = Sequential([
+        Flatten(input_shape= (frameNum,keyPointNum)), 
+        Dense(units= 64,  activation='relu'),
+        Dropout(0.2),
+        Dense(units= 32,  activation='relu'),
+        Dropout(0.2),
+        Dense(units = 2, activation = 'softmax')
+    ])
 
-    model = Sequential()
-
-    model.add( Flatten( input_shape= (frameNum,keyPointNum)))
-    model.add( Dense( units= 64,  activation='relu') )
-    model.add( Dense( units= 10,  activation='relu') )
     # model.add( Dense( units= 1,  activation='sigmoid') )
     model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
                   metrics=['acc'] )  # ! gradinet descent 종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
 
     ## Moddel Training
-    h = model.fit( pointPerFrame, groundTruth, epochs = 100)
+    h = model.fit( pointPerFramePerMotion, groundTruth, epochs = 1000)
     model.save(savePath)
     model.summary()
 
@@ -148,7 +186,7 @@ def test(model):
             testPointPerFrames.append(pointFrame)
             print("Counted Frame Number", len(testPointPerFrames))
         
-        if len(testPointPerFrames) == 30:
+        if len(testPointPerFrames) == 25:
             # print(testPointPerFrames)
             testPointPerFrames = tf.constant(testPointPerFrames, dtype = tf.float32)
             
@@ -157,7 +195,7 @@ def test(model):
             
             # print(testPointPerFrames.shape) # reshaped Dims
 
-            print(model.predict(testPointPerFrames))
+            print(model.predict(testPointPerFrames).argmax(axis =1))
             endTime = time.time()
             print("Time: " ,endTime - startTime)
             
