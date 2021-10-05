@@ -17,55 +17,33 @@ from tensorflow.keras.models import load_model
 def train(sleepPath, nonSleepPath, savePath):
     
     pointPerFramePerMotion = []
-    
+    frameNum = 25
+    keyPointNum = 136
+
     ## read data
     # read sleep data
     for file in os.listdir(sleepPath):
+        pointPerFrame = []
         if file[-10:]== "_train.txt":
-            with open(f"{sleepPath}/{file}", "r", encoding = 'UTF8') as f:
-                pointPerFrame = f.read()
-                pointPerFrame = pointPerFrame.split("\n")
-                pointPerFrame.pop()
-                for i in range(len(pointPerFrame)):
-                    pointPerFrame[i] = pointPerFrame[i].split(",")
-                    # 한 모션에대한 프레임이 25개가 아니라면 실행
-                    if not (len(pointPerFrame) == 25):
-                        print(f"{sleepPath}/{file} is not 25frames")
-
-                
-                noAllKeys = []
-
-                # convert str to integer         
-                for i in range(len(pointPerFrame)):
-                    for j in range(len(pointPerFrame[i])):
-                        if (len(pointPerFrame[i]) != 136):
-                            noAllKeys.append(f"{file}")
-                        pointPerFrame[i][j] = int(pointPerFrame[i][j]) 
-                
-                pointPerFramePerMotion.append(pointPerFrame)
+            file = open(f"{sleepPath}/{file}", "r", encoding = 'UTF8')
+            for frames in file:
+                keyPoints = frames.split()
+                keyPoints = list(map(int, keyPoints)) # convert str to integer
+                pointPerFrame.append(keyPoints)
+            pointPerFramePerMotion.append(pointPerFrame)
+            
 
     # read nonsleep data
     for file in os.listdir(nonSleepPath):
+        pointPerFrame = []
         if file[-10:]== "_train.txt":
-            with open(f"{sleepPath}/{file}", "r", encoding = 'UTF8') as f:
-                pointPerFrame = f.read()
-                pointPerFrame = pointPerFrame.split("\n")
-                pointPerFrame.pop()
-                for i in range(len(pointPerFrame)):
-                    pointPerFrame[i] = pointPerFrame[i].split(",")
-
-                    if not (len(pointPerFrame) == 25):
-                        print(f"{sleepPath}/{file} is not 25frames")
-                                 
-                for i in range(len(pointPerFrame)):
-                    for j in range(len(pointPerFrame[i])):
-                        noAllKeys.append(f"{file}")
-                        pointPerFrame[i][j] = int(pointPerFrame[i][j])
-                        
-
-                pointPerFramePerMotion.append(pointPerFrame)
-
-    print(noAllKeys)
+            file = open(f"{nonSleepPath}/{file}", "r", encoding = 'UTF8')
+            for frames in file:
+                keyPoints = frames.split()
+                keyPoints = list(map(int, keyPoints)) # convert str to integer
+                pointPerFrame.append(keyPoints)
+    
+            pointPerFramePerMotion.append(pointPerFrame)
 
     groundTruth = []
     # read groundTruth sleep data
@@ -73,22 +51,21 @@ def train(sleepPath, nonSleepPath, savePath):
         if file[-10:]== "ground.txt":
             with open(f"{sleepPath}/{file}", "r", encoding = 'UTF8') as f:
                 groundTruth.append(int(f.read()))
-    
+                
+
     # read groundTruth nonsleep data
     for file in os.listdir(nonSleepPath):
         if file[-10:]== "ground.txt":
             with open(f"{sleepPath}/{file}", "r", encoding = 'UTF8') as f:
                 groundTruth.append(int(f.read()))
-    
+                
 
-    
-            
 
-    # pointPerFramePerMotion = tf.constant(pointPerFramePerMotion, dtype = tf.float32) # prame per points
+    pointPerFramePerMotion = tf.constant(pointPerFramePerMotion, dtype = tf.float32) # prame per points
     # print("pointPerFrameMotion`s dims : ", tf.shape(pointPerFramePerMotion))
 
-    # groundTruth = tf.constant(groundTruth, dtype = tf.float32) # sleep = 1, didn`t sleep = 0
-    # print("groundTruth`s dims : ", tf.shape(groundTruth))
+    groundTruth = tf.constant(groundTruth, dtype = tf.float32) # sleep = 1, didn`t sleep = 0
+    print("groundTruth`s dims : ", tf.shape(groundTruth))
 # 
     # '''
     # testX = tf.constant([[[random.randrange(1, 10) for _ in range(keyPointNum)] for _ in range(frameNum)] for _ in range(2)], dtype = tf.float32) # prame per points
@@ -102,26 +79,25 @@ def train(sleepPath, nonSleepPath, savePath):
    # 
 # 
 # 
-    # # Training Model Define
-    # 
-    # model = Sequential([
-    #     Flatten(input_shape= (frameNum,keyPointNum)), 
-    #     Dense(units= 64,  activation='relu'),
-    #     Dropout(0.2),
-    #     Dense(units= 32,  activation='relu'),
-    #     Dropout(0.2),
-    #     Dense(units = 2, activation = 'softmax')
-    # ])
-# 
-    # # model.add( Dense( units= 1,  activation='sigmoid') )
-    # model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
-    #               metrics=['acc'] )  # ! gradinet descent 종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
-# 
-    # ## Moddel Training
-    # h = model.fit( pointPerFramePerMotion, groundTruth, epochs = 1000)
-    # model.save(savePath)
-    # model.summary()
+    # Training Model Define
+    
+    model = Sequential([
+        Flatten(input_shape= (frameNum,keyPointNum)), 
+        Dense(units= 64,  activation='relu'),
+        Dropout(0.2),
+        Dense(units= 32,  activation='relu'),
+        Dropout(0.2),
+        Dense(units = 2, activation = 'softmax')
+    ])
 
+    # model.add( Dense( units= 1,  activation='sigmoid') )
+    model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
+                  metrics=['acc'] )  # ! gradinet descent 종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
+
+    ## Moddel Training
+    h = model.fit( pointPerFramePerMotion, groundTruth, epochs = 1000)
+    model.save(savePath)
+    model.summary()
 
 
 def test(model):
@@ -244,8 +220,8 @@ def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
             pointPerFrame = []
             motionCnt += 1
 
+            groundTruth.append("1") # sleep : True
             for file in os.listdir(f"{sleepPath}/{dir}"):
-                groundTruth.append("1") # sleep : True
                 img = cv2.imread(f'{sleepPath}/{dir}/{file}')
                 faces = detector(img, 1)
                 points = []
@@ -261,14 +237,14 @@ def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
                                 points.append(keyPoint)
 
                     imgCnt += 1
-                    ### print(f" img : {file} , The number of completed [sleep image] : {imgCnt} / 41053") # image checker
+                    print(f" img : {file} , The number of completed [sleep image] : {imgCnt} / 41053") # image checker
                     pointPerFrame.append(points)
                               
                             
             for _ in range(frameNum - len(pointPerFrame)): # detect 되지 않은것이 있을 때
                 pointPerFrame.append(pointPerFrame[-1])
                 imgCnt += 1
-            ### print(f"The number of completed [sleep] motion : {motionCnt} / 1658") # motion checker
+            print(f"The number of completed [sleep] motion : {motionCnt} / 1658") # motion checker
 
             # convert integer to str 
             for i in range(len(pointPerFrame)):
@@ -276,6 +252,7 @@ def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
 
             with open(f"{sleepPath}/{dir}_train.txt", "w", encoding = 'UTF8') as f:
                 for frames in pointPerFrame:
+                    if len(frames) != 136: print(f"{dir}")
                     for points in frames:
                         f.write(points+" ")
                     f.write("\n")
@@ -293,8 +270,8 @@ def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
             pointPerFrame = []
             motionCnt += 1
 
+            groundTruth.append("0") # nonsleep : True
             for file in os.listdir(f"{nonSleepPath}/{dir}"):
-                groundTruth.append("0") # nonsleep : True
                 img = cv2.imread(f'{nonSleepPath}/{dir}/{file}')
                 faces = detector(img, 1)
                 points = []
@@ -310,13 +287,13 @@ def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
                                 points.append(keyPoint)
 
                     imgCnt += 1
-                    ### print(f" img : {file} , The number of completed [sleep image] : {imgCnt} / 41053") # image checker
+                    print(f" img : {file} , The number of completed [sleep image] : {imgCnt} / 41053") # image checker
                     pointPerFrame.append(points)
 
             for _ in range(25 - len(pointPerFrame)): # detect 되지 않은것이 있을 때
                 pointPerFrame.append(pointPerFrame[-1])
                 imgCnt += 1
-            ### print(f"The number of completed [nonsleep] motion : {motionCnt} / 1658") # motion checker
+            print(f"The number of completed [nonsleep] motion : {motionCnt} / 1658") # motion checker
 
             for i in range(len(pointPerFrame)):
                 pointPerFrame[i] = list(map(str, pointPerFrame[i]))
@@ -328,8 +305,7 @@ def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
                     f.write("\n")
 
             with open(f"{nonSleepPath}/{dir}_ground.txt", "w", encoding = 'UTF8') as f:
-                for grounds in groundTruth:
-                    f.write(grounds+ " ")
+                f.write(groundTruth)
 
        
 
@@ -347,7 +323,7 @@ if __name__=="__main__":
     elif sys.argv[1] == "test": # [test] [model_path] 
         model = f"{sys.argv[2]}"
         test(model)
-    elif sys.argv[1] == 'data': # [data] [originImgPath] [saveSleepPath] [saveNonSleepPath]
+    elif sys.argv[1] == 'data': # [data] [saveSleepPath] [saveNonSleepPath] [originImgPath]
         dataPreprocessing(sys.argv[2], sys.argv[3], sys.argv[4])
 
     else :
