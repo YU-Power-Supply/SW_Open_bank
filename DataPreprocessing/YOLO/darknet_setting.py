@@ -1,337 +1,147 @@
-import tensorflow as tf
-import numpy as np
-import cv2, dlib
-from imutils import face_utils
+#--V 1.2--
+import sys
+import os
+import json
 
-import time, random, sys, os, copy
+def create_dir(dname):
+    try:
+        if not os.path.exists("./"+directory): # if you don't have same dir, create
+            os.makedirs("./"+directory)
+    except OSError:
+        print ('Error: Creating directory. ' +  directory)
 
-from tensorflow.keras.layers import Dense, Dropout , Flatten, Conv2D, MaxPool2D
-from tensorflow.keras import Sequential
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.models import load_model
+def make_data(dname, classes): #make obj.data file
+    with open(f'{dname}/obj.data', "w", encoding='UTF8') as f:
+        strdata = ''
+        data = {'classes = ' : '{}\n'.format(len(classes)), #count classes
+        'train = ' : f'{dname}train.txt\n', # train data path file
+        'valid = ' : f'{dname}valid.txt\n', # valid data path file
+        'names = ' : f'{dname}obj.names\n', # classes name file
+        'backup = ' : 'backup/\n'}           # storage path
 
+        for k, v in data.items():
+            strdata += k + v
+        f.write(strdata)
 
-# print("dlib", dlib.__version__, "numpy", np.__version__)
+def make_names(dname, classes): # make obj.names file
 
+    print("change [region]        classes = ", len(classes))
+    print("change [convolutional] filters = ", (len(classes)+5)*5)
+    with open(f'{dname}/obj.names', "w", encoding='UTF8') as f:
+        f.write('\n'.join(classes))
 
-def train(sleepPath, nonSleepPath, savePath):
+def make_train_list(dname, img_dir_list, check): # make train.txt file
+    file_list = []
+    for path in img_dir_list:
+        file_list += [path+file for file in os.listdir(path) if file[-1] == 'g'] # collect png, jpg etc..
+    #print(file_list)
+    with open(f'{dname}train.txt', check, encoding='UTF8') as f:
+        if check == "a":
+            f.write("\n")
+        f.write('\n'.join(file_list))
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## 디렉토리 이름 변경 ##
+def rename_dir(img_dir):
+    dir_list = []
+    for dir_name in os.listdir(img_dir):
+        if 7 < len(dir_name): # if longer then 6, rename
+            os.rename(img_dir+dir_name, img_dir+dir_name[:6])
+        dir_list.append(img_dir+dir_name[:6] + "/")
+    return dir_list
+
+## 한 번에 합쳐보리기 ##
+def rename_file(dir_list):
+    for file_name in dir_list:
+        pass # 보류
+
+def kor_to_eng(dname, img_dir_list):
+    check = {"정상주시":"normal", "졸음재현":"drowse", "하품재현":"yawn", "흡연재현":"smoke", "통화재현":"call"}
+    for path in img_dir_list:
+        for file in os.listdir(path): # collect png, jpg etc..
+            temp = file.split("_")
+            if temp[4].isdigit():
+                continue
+            os.rename(path+file, path + "_".join(temp[:3] + [check[temp[5]]] + temp[-3:]))
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def json_to_txt(json_path, save_path, classes):
+    file_list = os.listdir(json_path)
     
-    pointPerFramePerMotion = []
-    
-    ## read data
-    # read sleep data
-    for file in os.listdir(sleepPath):
-        if file[-10:]== "_train.txt":
-            with open(f"{sleepPath}/{file}", "r", encoding = 'UTF8') as f:
-                pointPerFrame = f.read()
-                pointPerFrame = pointPerFrame.split("\n")
-                pointPerFrame.pop()
-                for i in range(len(pointPerFrame)):
-                    pointPerFrame[i] = pointPerFrame[i].split(",")
+    for i in file_list:
+        data = ''
+        with open(json_path+i, encoding='UTF8') as file:
+            json_data = json.load(file)
+            bounding_data = json_data['ObjectInfo']['BoundingBox']
+            for obj in bounding_data:
+                if bounding_data[obj]['isVisible']:
+                    ltx, lty, rbx, rby = map(float, bounding_data[obj]['Position'])
+                    #conversion x, y, w, h
+                    transpos = '{} {} {} {}'.format(((ltx + rbx)/2)/720, ((lty + rby)/2)/1280, (rbx - ltx)/720, (rby - lty)/1280)
+                    data += f"{classes[obj]} {transpos}\n"
+                    
+                    '''
+                    # for newclasses
+                    transpos = '{} {} {} {}'.format(((ltx + rbx)/2)/800, ((lty + rby)/2)/1280, (rbx - ltx)/800, (rby - lty)/1280)
+                    if 1 <= classes[obj] <= 3 and bounding_data[obj]['Opened']:
+                        data += f"{classes[obj]+5} {transpos}\n"
+                    else:
+                        data += f"{classes[obj]} {transpos}\n"
+                    '''
 
-                    # 한 모션에대한 프레임이 25개가 아니라면 실행
-                    if not (len(pointPerFrame) == 25):
-                        print(f"{sleepPath}/{file} is not 25frames")
-
-                # convert str to integer         
-                for i in range(len(pointPerFrame)):
-                    for j in range(len(pointPerFrame[i])):
-                        pointPerFrame[i][j] = int(pointPerFrame[i][j]) 
-                pointPerFramePerMotion.append(pointPerFrame)
-
-    # read nonsleep data
-    for file in os.listdir(nonSleepPath):
-        if file[-10:]== "_train.txt":
-            with open(f"{sleepPath}/{file}", "r", encoding = 'UTF8') as f:
-                pointPerFrame = f.read()
-                pointPerFrame = pointPerFrame.split("\n")
-                pointPerFrame.pop()
-                for i in range(len(pointPerFrame)):
-                    pointPerFrame[i] = pointPerFrame[i].split(",")
-
-                    if not (len(pointPerFrame) == 25):
-                        print(f"{sleepPath}/{file} is not 25frames")
-                                 
-                for i in range(len(pointPerFrame)):
-                    for j in range(len(pointPerFrame[i])):
-                        pointPerFrame[i][j] = int(pointPerFrame[i][j]) 
-                pointPerFramePerMotion.append(pointPerFrame)
-
-
-    groundTruth = []
-    # read groundTruth sleep data
-    for file in os.listdir(sleepPath):
-        if file[-10:]== "ground.txt":
-            with open(f"{sleepPath}/{file}", "r", encoding = 'UTF8') as f:
-                groundTruth.append(int(f.read()))
-                print("ground : ", len(groundTruth))
-    
-    # read groundTruth nonsleep data
-    for file in os.listdir(nonSleepPath):
-        if file[-10:]== "ground.txt":
-            with open(f"{sleepPath}/{file}", "r", encoding = 'UTF8') as f:
-                groundTruth.append(int(f.read()))
-                print("ground : ", len(groundTruth))
-    
-
-    # check data is rectangle shape
-    for i in range(len(pointPerFramePerMotion)):
-        print("Motion :", len(pointPerFramePerMotion))
-        for j in range(len(pointPerFramePerMotion[i])):
-            print(len(pointPerFramePerMotion[i]))
+        #데이터 저장부
+        savepath = save_path + i[:-4] + "txt" # json -> txt
+        with open(savepath, "w", encoding='UTF8') as wfile:
+            wfile.write(data)
     
     
+def remove_txt(txtpath):  # when you want to remove txt files
+    for t in os.listdir(txtpath):
+        if t[-3:] == "txt":
+            os.remove(txtpath+t)
 
-    pointPerFramePerMotion = tf.constant(pointPerFramePerMotion, dtype = tf.float32) # prame per points
-    print("pointPerFrameMotion`s dims : ", tf.shape(pointPerFramePerMotion))
-
-    # groundTruth = tf.constant(groundTruth, dtype = tf.float32) # sleep = 1, didn`t sleep = 0
-    # print("groundTruth`s dims : ", tf.shape(groundTruth))
-# 
-    # '''
-    # testX = tf.constant([[[random.randrange(1, 10) for _ in range(keyPointNum)] for _ in range(frameNum)] for _ in range(2)], dtype = tf.float32) # prame per points
-    # testY = tf.constant([ [random.randrange(0, 2) ]for _ in range(2)]) # sleep = 1, didn`t sleep = 0
-    # 
-    # print(tf.shape(testX))
-    # print(tf.shape(testY))
-    # '''
-# 
-# 
-   # 
-# 
-# 
-    # # Training Model Define
-    # 
-    # model = Sequential([
-    #     Flatten(input_shape= (frameNum,keyPointNum)), 
-    #     Dense(units= 64,  activation='relu'),
-    #     Dropout(0.2),
-    #     Dense(units= 32,  activation='relu'),
-    #     Dropout(0.2),
-    #     Dense(units = 2, activation = 'softmax')
-    # ])
-# 
-    # # model.add( Dense( units= 1,  activation='sigmoid') )
-    # model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
-    #               metrics=['acc'] )  # ! gradinet descent 종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
-# 
-    # ## Moddel Training
-    # h = model.fit( pointPerFramePerMotion, groundTruth, epochs = 1000)
-    # model.save(savePath)
-    # model.summary()
-
-
-
-def test(model):
-
-    model = load_model(model)
-    print("")
-    model.summary()
-    print("")
-
-    detector = dlib.get_frontal_face_detector()
-    predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
-
-    keyPointModel = ('models/2018_12_17_22_58_35.h5')
-
-    cap = cv2.VideoCapture(0)
-
-    testPointPerFrames = []
-    startTime = time.time()
-    while cap.isOpened():
-        ret, frame = cap.read()
-
-        if not ret:
-            break
-
-        img = frame.copy()
-        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        faces = detector(gray_img, 1)
-        
-        pointFrame = []
-        for face in faces:
-            shapes = predictor(gray_img, face)
-            shapes = face_utils.shape_to_np(shapes)
-            
-
-            for point in shapes:
-                cv2.circle(img, point, 5, (255, 255, 0))
-
-            for keyPoints in shapes:
-                for keyPoint in keyPoints:
-                    pointFrame.append(keyPoint)
-
-        if len(pointFrame) == 136: # landmark * 2 = 136
-            testPointPerFrames.append(pointFrame)
-            print("Counted Frame Number", len(testPointPerFrames))
-        
-        if len(testPointPerFrames) == 25:
-            # print(testPointPerFrames)
-            testPointPerFrames = tf.constant(testPointPerFrames, dtype = tf.float32)
-            
-            # print(testPointPerFrames.shape) # Dims
-            testPointPerFrames = tf.expand_dims(testPointPerFrames, axis=0)
-            
-            # print(testPointPerFrames.shape) # reshaped Dims
-
-            print(model.predict(testPointPerFrames).argmax(axis =1))
-            endTime = time.time()
-            print("Time: " ,endTime - startTime)
-            
-            testPointPerFrames = []
-
-        
-
-
-        cv2.imshow('result', img)
-        if cv2.waitKey(1) == ord('q'):
-            break
-                
-                
-def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
-
-    dirChecker = []
-    for dir in os.listdir(os.getcwd()):
-        dirChecker.append(dir) 
-
-    # Labeling data by directory 
-    # if already there are sleep && nonsleep dir this method don`t operate
-    if (sleepPath not in dirChecker) or (nonSleepPath not in dirChecker): 
-        sleepScenarios = ["02", "03", "09", "10", "16", "17", "21", "22", "28", "29"]
-        
-        for dir in os.listdir(dirPath):
-            if (dir[11:13]) in sleepScenarios:
-                os.rename(f"{dirPath}/{dir}", f"{sleepPath}/{dir}")
-            else:
-                os.rename(f"{dirPath}/{dir}", f"{nonSleepPath}/{dir}")
-
-
-    # face detect && find keypoints on landmark 
-    detector = dlib.get_frontal_face_detector()
-    predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
-    keyPointModel = ('models/2018_12_17_22_58_35.h5')
-
+if __name__ == '__main__':
     
-    imgCnt = 0
-    motionCnt = 0
+    directory = 'custom/' # what you want to create directory name
+    img_dir = 'D:/dataset/Training/realboximg/4.truck/' #route of img_dir
+    json_dir = 'D:/dataset/Training/realbox/4.truck/'    #route of json_dir
+    classes = {'Face' : 0, 'Leye' : 1, 'Reye' : 2, 'Mouth' : 3, 'Phone' : 4, 'Cigar' : 5}
+    newclasses = {'Face' : 0, 'Leye_close' : 1, 'Reye_close' : 2, 'Mouth_close' : 3, 'Phone' : 4, 'Cigar' : 5, 'Leye_open' : 6,'Reye_open' : 7, 'Mouth_open' : 8} #leyeopen reyeopen close close mouth open close
+    
+    img_dir_list = rename_dir(img_dir)
+    json_dir_list = rename_dir(json_dir)
 
-    frameNum = 25
-    keyPointNum = 136
-
-    for dir in os.listdir(sleepPath): # sleep images
-        pointPerFrame = []
-        motionCnt += 1
-
-        groundTruth = "1" # sleep : True
-        for file in os.listdir(f"{sleepPath}/{dir}"):
-            img = cv2.imread(f'{sleepPath}/{dir}/{file}')
-            faces = detector(img, 1)
-            points = []
-
-            if (len(faces) == 0) : #얼굴이 detect되지 않았을 때
-                print(f"\nimg : {file},  couldn`t detect present face ")
-
-            for face in faces:
-                shapes = predictor(img, face)
-                shapes = face_utils.shape_to_np(shapes)
-                for keyPointXY in shapes:
-                    for keyPoint in keyPointXY:
-                        points.append(keyPoint)
-                        if(len(points) == keyPointNum):
-                            imgCnt += 1
-                            print(f" img : {file} , The number of completed [sleep image] : {imgCnt} / 41053") # image checker
-                            pointPerFrame.append(points)
-                                            
-        
-        for _ in range(frameNum - len(pointPerFrame)): # detect 되지 않은것이 있을 때
-            pointPerFrame.append(pointPerFrame[-1])
-            imgCnt += 1
-        print(f"The number of completed [sleep] motion : {motionCnt} / 1658") # motion checker
-
-
-
-        for i in range(len(pointPerFrame)):
-            pointPerFrame[i] = list(map(str, pointPerFrame[i]))
-
-        with open(f"{sleepPath}/{dir}_train.txt", "w", encoding = 'UTF8') as f:
-            for frames in pointPerFrame:
-                for frame in frames: 
-                    if frame == frames[-1]:
-                        f.write(frame)
-                    else :
-                        f.write(frame + ",")
-                f.write("\n")
-
-        with open(f"{sleepPath}/{dir}_ground.txt", "w", encoding = 'UTF8') as f:
-            f.write(groundTruth)   
-
-
-
-    for dir in os.listdir(nonSleepPath): # nonsleep images
-        
-        if not (dir[-4:] == ".txt"):
-            pointPerFrame = []
-            motionCnt += 1
-
-            groundTruth = "0" # nonsleep : False
-            for file in os.listdir(f"{nonSleepPath}/{dir}"):
-                img = cv2.imread(f'{nonSleepPath}/{dir}/{file}')
-                faces = detector(img, 1)
-                points = []
-
-                if (len(faces) == 0) : 
-                    print(f"\nimg : {file}, couldn`t detect present face ")
-
-                for face in faces:
-                    shapes = predictor(img, face)
-                    shapes = face_utils.shape_to_np(shapes)
-                    for keyPointXY in shapes:
-                        for keyPoint in keyPointXY:
-                            points.append(keyPoint)
-                            if(len(points) == 136):
-                                imgCnt += 1
-                                print(f" img : {file} , The number of completed [non sleep] image : {imgCnt} / 41053") # image checker
-                                pointPerFrame.append(points)
-
-
-            for _ in range(25 - len(pointPerFrame)): # detect 되지 않은것이 있을 때
-                pointPerFrame.append(pointPerFrame[-1])
-                imgCnt += 1
-            print(f"The number of completed [nonsleep] motion : {motionCnt} / 1658") # motion checker
-
-        for i in range(len(pointPerFrame)):
-            pointPerFrame[i] = list(map(str, pointPerFrame[i]))
-
-        with open(f"{nonSleepPath}/{dir}_train.txt", "w", encoding = 'UTF8') as f:
-            for frames in pointPerFrame:
-                for frame in frames: 
-                    if frame == frames[-1]:
-                        f.write(frame)
-                    else :
-                        f.write(frame + ",")
-                f.write("\n")
-
-        with open(f"{nonSleepPath}/{dir}_ground.txt", "w", encoding = 'UTF8') as f:
-            f.write(groundTruth)
-
-
-
-if __name__=="__main__":
-
-    model = ""
-    savePath = ""
+    img_dir_list.sort()
+    json_dir_list.sort()
 
     if len(sys.argv) == 1:
         print("명령 프롬프트로 실행하세요")
         exit(0)
-    
-    elif sys.argv[1] == "train": # [train] [sleepPath] [nonSleepPath] [save_path]
-        train(sys.argv[2], sys.argv[3], sys.argv[4])
-    elif sys.argv[1] == "test": # [test] [model_path] 
-        model = f"{sys.argv[2]}"
-        test(model)
-    elif sys.argv[1] == 'data': # [data] [originImgPath] [saveSleepPath] [saveNonSleepPath]
-        dataPreprocessing(sys.argv[2], sys.argv[3], sys.argv[4])
 
-    else :
-        print("잘못 된 명령어 입니다.")
+    elif sys.argv[1] == "setnew":
+        create_dir(directory)
+        make_data(directory, classes)
+        make_names(directory, classes)
+        make_train_list(directory, img_dir_list, "w")
+
+    elif sys.argv[1] == "setadd":
+        create_dir(directory)
+        make_data(directory, classes)
+        make_names(directory, classes)
+        make_train_list(directory, img_dir_list, "a")
+
+    elif sys.argv[1] == "jtt": # json to text
+        for i in range(len(json_dir_list)):
+            print(i)
+            json_to_txt(json_dir_list[i], img_dir_list[i], classes)
+
+    elif sys.argv[1] == "rmv": #remove
+        for i in img_dir_list:
+            print(i)
+            remove_txt(i)
+    
+    elif sys.argv[1] == "kte": # korea to english
+        kor_to_eng(directory, img_dir_list)
+
+    print("완료")
