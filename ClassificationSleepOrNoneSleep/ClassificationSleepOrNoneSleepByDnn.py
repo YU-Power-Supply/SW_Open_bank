@@ -304,7 +304,8 @@ def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
                     f.write("\n")
 
             with open(f"{nonSleepPath}/{dir}_ground.txt", "w", encoding = 'UTF8') as f:
-                f.write(groundTruth)
+                for grounds in groundTruth:
+                    f.write(grounds+ " ") 
 
        
 
