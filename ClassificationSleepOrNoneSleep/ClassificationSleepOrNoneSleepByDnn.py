@@ -252,7 +252,6 @@ def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
 
             with open(f"{sleepPath}/{dir}_train.txt", "w", encoding = 'UTF8') as f:
                 for frames in pointPerFrame:
-                    if len(frames) != 136: print(f"{dir}")
                     for points in frames:
                         f.write(points+" ")
                     f.write("\n")
