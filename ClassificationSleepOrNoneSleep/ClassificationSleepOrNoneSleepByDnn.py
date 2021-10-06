@@ -33,6 +33,11 @@ def train(sleepPath, nonSleepPath, savePath):
             pointPerFramePerMotion.append(pointPerFrame)
             
 
+    for i in range(len(pointPerFramePerMotion)):
+        if len(pointPerFramePerMotion[i]) != 25 : print("not 25") 
+        for j in range(len(pointPerFramePerMotion[i])): 
+            if len(pointPerFramePerMotion[i][j]) != 136 : print(f"{len(pointPerFramePerMotion[i][j])}")
+            
     # read nonsleep data
     for file in os.listdir(nonSleepPath):
         pointPerFrame = []
@@ -42,7 +47,6 @@ def train(sleepPath, nonSleepPath, savePath):
                 keyPoints = frames.split()
                 keyPoints = list(map(int, keyPoints)) # convert str to integer
                 pointPerFrame.append(keyPoints)
-    
             pointPerFramePerMotion.append(pointPerFrame)
 
     groundTruth = []
@@ -56,7 +60,7 @@ def train(sleepPath, nonSleepPath, savePath):
     # read groundTruth nonsleep data
     for file in os.listdir(nonSleepPath):
         if file[-10:]== "ground.txt":
-            with open(f"{sleepPath}/{file}", "r", encoding = 'UTF8') as f:
+            with open(f"{nonSleepPath}/{file}", "r", encoding = 'UTF8') as f:
                 groundTruth.append(int(f.read()))
                 
 
@@ -252,7 +256,6 @@ def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
 
             with open(f"{sleepPath}/{dir}_train.txt", "w", encoding = 'UTF8') as f:
                 for frames in pointPerFrame:
-                    if len(frames) != 136: print(f"{dir}")
                     for points in frames:
                         f.write(points+" ")
                     f.write("\n")
@@ -287,7 +290,7 @@ def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
                                 points.append(keyPoint)
 
                     imgCnt += 1
-                    print(f" img : {file} , The number of completed [sleep image] : {imgCnt} / 41053") # image checker
+                    print(f" img : {file} , The number of completed [nonsleep image] : {imgCnt} / 41053") # image checker
                     pointPerFrame.append(points)
 
             for _ in range(25 - len(pointPerFrame)): # detect 되지 않은것이 있을 때
@@ -305,7 +308,8 @@ def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
                     f.write("\n")
 
             with open(f"{nonSleepPath}/{dir}_ground.txt", "w", encoding = 'UTF8') as f:
-                f.write(groundTruth)
+                for grounds in groundTruth:
+                    f.write(grounds+ " ") 
 
        
 
