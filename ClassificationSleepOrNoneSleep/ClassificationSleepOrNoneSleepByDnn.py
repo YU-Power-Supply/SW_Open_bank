@@ -28,16 +28,13 @@ def train(sleepPath, nonSleepPath, savePath):
             file = open(f"{sleepPath}/{file}", "r", encoding = 'UTF8')
             for frames in file:
                 keyPoints = frames.split()
+                if len(keyPoints) != 136: print(f"{file}")
                 keyPoints = list(map(int, keyPoints)) # convert str to integer
                 pointPerFrame.append(keyPoints)
             pointPerFramePerMotion.append(pointPerFrame)
             
 
-    for i in range(len(pointPerFramePerMotion)):
-        if len(pointPerFramePerMotion[i]) != 25 : print("not 25") 
-        for j in range(len(pointPerFramePerMotion[i])): 
-            if len(pointPerFramePerMotion[i][j]) != 136 : print(f"{len(pointPerFramePerMotion[i][j])}")
-            
+    
     # read nonsleep data
     for file in os.listdir(nonSleepPath):
         pointPerFrame = []
@@ -233,12 +230,11 @@ def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
                 #얼굴이 detect되지 않았을 때
                 if (len(faces) == 0) : print(f"\nimg : {file},  couldn`t detect present face ")
                 else: 
-                    for face in faces:
-                        shapes = predictor(img, face)
-                        shapes = face_utils.shape_to_np(shapes)
-                        for keyPointXY in shapes:
-                            for keyPoint in keyPointXY:
-                                points.append(keyPoint)
+                    shapes = predictor(img, faces[0])
+                    shapes = face_utils.shape_to_np(shapes)
+                    for keyPointXY in shapes:
+                        for keyPoint in keyPointXY:
+                            points.append(keyPoint)
 
                     imgCnt += 1
                     print(f" img : {file} , The number of completed [sleep image] : {imgCnt} / 41053") # image checker
@@ -256,8 +252,9 @@ def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
 
             with open(f"{sleepPath}/{dir}_train.txt", "w", encoding = 'UTF8') as f:
                 for frames in pointPerFrame:
+                    if len(frames) != 136 : print(dir)
                     for points in frames:
-                        f.write(points+" ")
+                        f.write(points+" ") 
                     f.write("\n")
 
             with open(f"{sleepPath}/{dir}_ground.txt", "w", encoding = 'UTF8') as f:
@@ -282,12 +279,11 @@ def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
 
                 if (len(faces) == 0) : print(f"\nimg : {file},  couldn`t detect present face ")
                 else :
-                    for face in faces:
-                        shapes = predictor(img, face)
-                        shapes = face_utils.shape_to_np(shapes)
-                        for keyPointXY in shapes:
-                            for keyPoint in keyPointXY:
-                                points.append(keyPoint)
+                    shapes = predictor(img, faces[0])
+                    shapes = face_utils.shape_to_np(shapes)
+                    for keyPointXY in shapes:
+                        for keyPoint in keyPointXY:
+                            points.append(keyPoint)
 
                     imgCnt += 1
                     print(f" img : {file} , The number of completed [nonsleep image] : {imgCnt} / 41053") # image checker
