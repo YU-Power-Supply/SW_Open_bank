@@ -1,6 +1,10 @@
 # SW_Open_bank
 
-## ClassificationSleepOrNoneSleep
+## ClassificationSleepOrNoneSleep (최지웅, 김태환)
+2018_12_17_22_58_35.h5 : faceDetection을 하기 위한 학습된 모델
+ClassificationSleepOrNoneSleepByCnn.py : cnn 으로 학습망을 구성한 코드 (incomplete)
+ClassificationSleepOrNoneSleepByDnn.py : dnn 으로 학습망을 구성한 코드 (complete)
+shape_predictor_68_face_landmark.dat : detect landmark as keypoint on deteceted face 를 위한 학습된 모델
 
 
 ## darknet_setting.py
