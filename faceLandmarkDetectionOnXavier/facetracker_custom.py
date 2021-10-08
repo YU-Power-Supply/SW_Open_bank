@@ -214,8 +214,6 @@ def run(ip="127.0.0.1", port=11573, fps=24, visualize = 0, dcap=None, use_dshowc
                         f.eye_blink = [1, 1]
                     right_state = "O" if f.eye_blink[0] > 0.30 else "-"
                     left_state = "O" if f.eye_blink[1] > 0.30 else "-"
-                    if silent == 0:
-                        print(f"Confidence[{f.id}]: {f.conf:.4f} / 3D fitting error: {f.pnp_error:.4f} / Eyes: {left_state}, {right_state}")
                     detected = True
                     if not f.success:
                         pts_3d = np.zeros((70, 3), np.float32)
@@ -350,7 +348,6 @@ def run(ip="127.0.0.1", port=11573, fps=24, visualize = 0, dcap=None, use_dshowc
                         break
                 failures = 0
                 landmarks = np.delete(landmarks, [0, 0], axis=0)
-                print(landmarks)
             except Exception as e:
                 if e.__class__ == KeyboardInterrupt:
                     if silent == 0:
@@ -388,6 +385,6 @@ def run(ip="127.0.0.1", port=11573, fps=24, visualize = 0, dcap=None, use_dshowc
         average_tracking_time = 1000 * tracking_time / tracking_frames
         print(f"Average tracking time per detected face: {average_tracking_time:.2f} ms")
         print(f"Tracking time: {total_tracking_time:.3f} s\nFrames: {tracking_frames}\nFPS: {tracking_frames/total_tracking_time:.3f}")
-
+    return landmarks
 if __name__ == "__main__":
     run(visualize=1, max_threads=4, capture="video.mp4")
