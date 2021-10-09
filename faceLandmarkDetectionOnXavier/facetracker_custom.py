@@ -5,7 +5,7 @@ import argparse
 import traceback
 import gc
 import dshowcapture
-
+'''
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-i", "--ip", help="Set IP address for sending tracking data", default="127.0.0.1")
 parser.add_argument("-p", "--port", type=int, help="Set port for sending tracking data", default=11573)
@@ -52,10 +52,10 @@ if os.name == 'nt':
     parser.add_argument("--use-dshowcapture", type=int, help="When set to 1, libdshowcapture will be used for video input instead of OpenCV", default=1)
     parser.add_argument("--blackmagic-options", type=str, help="When set, this additional option string is passed to the blackmagic capture library", default=None)
     parser.add_argument("--priority", type=int, help="When set, the process priority will be changed", default=None, choices=[0, 1, 2, 3, 4, 5])
+'''
 
 max_threads = 1
 os.environ["OMP_NUM_THREADS"] = str(max_threads)
-
 
 def search_camera(list_cameras = 0, list_dcaps = -1):
     if os.name == 'nt' and (list_cameras > 0 or not list_dcaps is None):
@@ -98,14 +98,13 @@ def search_camera(list_cameras = 0, list_dcaps = -1):
 import numpy as np
 import time
 import cv2
-import socket
 import struct
 import json
 from input_reader import InputReader, VideoReader, DShowCaptureReader, try_int
 from tracker import Tracker, get_model_base_path
 
 
-def run(ip="127.0.0.1", port=11573, fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_data="",raw_rgb=0, width=640, height=360, video_out = None, face_id_offset = 0, video_scale=1, threshold=None, max_threads=max_threads, faces=1, discard_after=10, scan_every=3, silent=0, model=3, model_dir=None, gaze_tracking=1, detection_threshold=0.6, scan_retinaface=0, max_feature_updates=900, no_3d_adapt=1, try_hard=0, video_fps = 24, dump_points = ""):
+def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_data="",raw_rgb=0, width=640, height=360, video_out = None, face_id_offset = 0, video_scale=1, threshold=None, max_threads=max_threads, faces=1, discard_after=10, scan_every=3, silent=0, model=3, model_dir=None, gaze_tracking=1, detection_threshold=0.6, scan_retinaface=0, max_feature_updates=900, no_3d_adapt=1, try_hard=0, video_fps = 24, dump_points = ""):
     
     use_dshowcapture_flag = False
     if os.name == 'nt':
@@ -155,6 +154,7 @@ def run(ip="127.0.0.1", port=11573, fps=24, visualize = 0, dcap=None, use_dshowc
         need_reinit = 0
         failures = 0
         source_name = input_reader.name
+        A_frame = np.empty((0, 136), dtype=float)
         while input_reader.is_open():
             if not input_reader.is_open() or need_reinit == 1:
                 input_reader = InputReader(capture, raw_rgb, width, height, fps, use_dshowcapture=use_dshowcapture_flag, dcap=dcap)
@@ -167,9 +167,7 @@ def run(ip="127.0.0.1", port=11573, fps=24, visualize = 0, dcap=None, use_dshowc
             if not input_reader.is_ready():
                 time.sleep(0.02)
                 continue
-
             ret, frame = input_reader.read()
-
             if not ret:
                 if is_camera:
                     attempt += 1
@@ -187,11 +185,9 @@ def run(ip="127.0.0.1", port=11573, fps=24, visualize = 0, dcap=None, use_dshowc
             need_reinit = 0
             frame_count += 1
             now = time.time()
-
             if first:
                 first = False
                 fheight, fwidth, channels = frame.shape
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 tracker = Tracker(fwidth, fheight, threshold=threshold, max_threads=max_threads, max_faces=faces, discard_after=discard_after, scan_every=scan_every, silent=False if silent == 0 else True, model_type=model, model_dir=model_dir, no_gaze=False if gaze_tracking != 0 and model != -1 else True, detection_threshold=detection_threshold, use_retinaface=scan_retinaface, max_feature_updates=max_feature_updates, static_model=True if no_3d_adapt == 1 else False, try_hard=try_hard == 1)
                 if not video_out is None:
                     out = cv2.VideoWriter(video_out, cv2.VideoWriter_fourcc('F','F','V','1'), video_fps, (fwidth * video_scale, fheight * video_scale))
@@ -204,9 +200,8 @@ def run(ip="127.0.0.1", port=11573, fps=24, visualize = 0, dcap=None, use_dshowc
                     total_tracking_time += inference_time
                     tracking_time += inference_time / len(faces)
                     tracking_frames += 1
-                packet = bytearray()
                 detected = False
-                landmarks = np.empty((1, 2), dtype=float) # landmarks in a frame
+                landmarks = np.array([], float) # landmarks in a frame
                 for face_num, f in enumerate(faces):
                     f = copy.copy(f)
                     f.id += face_id_offset
@@ -215,34 +210,11 @@ def run(ip="127.0.0.1", port=11573, fps=24, visualize = 0, dcap=None, use_dshowc
                     right_state = "O" if f.eye_blink[0] > 0.30 else "-"
                     left_state = "O" if f.eye_blink[1] > 0.30 else "-"
                     detected = True
-                    if not f.success:
-                        pts_3d = np.zeros((70, 3), np.float32)
-                    packet.extend(bytearray(struct.pack("d", now)))
-                    packet.extend(bytearray(struct.pack("i", f.id)))
-                    packet.extend(bytearray(struct.pack("f", fwidth)))
-                    packet.extend(bytearray(struct.pack("f", fheight)))
-                    packet.extend(bytearray(struct.pack("f", f.eye_blink[0])))
-                    packet.extend(bytearray(struct.pack("f", f.eye_blink[1])))
-                    packet.extend(bytearray(struct.pack("B", 1 if f.success else 0)))
-                    packet.extend(bytearray(struct.pack("f", f.pnp_error)))
-                    packet.extend(bytearray(struct.pack("f", f.quaternion[0])))
-                    packet.extend(bytearray(struct.pack("f", f.quaternion[1])))
-                    packet.extend(bytearray(struct.pack("f", f.quaternion[2])))
-                    packet.extend(bytearray(struct.pack("f", f.quaternion[3])))
-                    packet.extend(bytearray(struct.pack("f", f.euler[0])))
-                    packet.extend(bytearray(struct.pack("f", f.euler[1])))
-                    packet.extend(bytearray(struct.pack("f", f.euler[2])))
-                    packet.extend(bytearray(struct.pack("f", f.translation[0])))
-                    packet.extend(bytearray(struct.pack("f", f.translation[1])))
-                    packet.extend(bytearray(struct.pack("f", f.translation[2])))
                     if not log is None:
                         log.write(f"{frame_count},{now},{fwidth},{fheight},{fps},{face_num},{f.id},{f.eye_blink[0]},{f.eye_blink[1]},{f.conf},{f.success},{f.pnp_error},{f.quaternion[0]},{f.quaternion[1]},{f.quaternion[2]},{f.quaternion[3]},{f.euler[0]},{f.euler[1]},{f.euler[2]},{f.rotation[0]},{f.rotation[1]},{f.rotation[2]},{f.translation[0]},{f.translation[1]},{f.translation[2]}")
-                    for (x,y,c) in f.lms:
-                        packet.extend(bytearray(struct.pack("f", c)))
+
                     for pt_num, (x,y,c) in enumerate(f.lms):
-                        packet.extend(bytearray(struct.pack("f", y)))
-                        packet.extend(bytearray(struct.pack("f", x)))
-                        landmarks = np.append(landmarks, np.array([[x, y]]), axis=0)
+                        landmarks = np.append(landmarks, [x, y], axis=0)
                         if not log is None:
                             log.write(f",{y},{x},{c}")
                         if pt_num == 66 and (f.eye_blink[0] < 0.30 or c < 0.20):
@@ -267,27 +239,18 @@ def run(ip="127.0.0.1", port=11573, fps=24, visualize = 0, dcap=None, use_dshowc
                             if not (x < 0 or y < 0 or x >= fheight or y >= fwidth):
                                 frame[int(x), int(y)] = color
                                 
-                                
-                    for (x,y,z) in f.pts_3d:
-                        packet.extend(bytearray(struct.pack("f", x)))
-                        packet.extend(bytearray(struct.pack("f", -y)))
-                        packet.extend(bytearray(struct.pack("f", -z)))
-                        if not log is None:
-                            log.write(f",{x},{-y},{-z}")
                     if f.current_features is None:
                         f.current_features = {}
                     for feature in features:
                         if not feature in f.current_features:
                             f.current_features[feature] = 0
-                        packet.extend(bytearray(struct.pack("f", f.current_features[feature])))
                         if not log is None:
                             log.write(f",{f.current_features[feature]}")
                     if not log is None:
                         log.write("\r\n")
                         log.flush()
-
-                if detected and len(faces) < 40:
-                    sock.sendto(packet, (ip, port))
+                        
+                A_frame = np.vstack([A_frame, landmarks])
 
                 if not out is None:
                     video_frame = frame
@@ -300,54 +263,9 @@ def run(ip="127.0.0.1", port=11573, fps=24, visualize = 0, dcap=None, use_dshowc
                 if visualize != 0:
                     cv2.imshow('OpenSeeFace Visualization', frame)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
-                        if dump_points != "" and not faces is None and len(faces) > 0:
-                            np.set_printoptions(threshold=sys.maxsize, precision=15)
-                            pairs = [
-                                (0, 16),
-                                (1, 15),
-                                (2, 14),
-                                (3, 13),
-                                (4, 12),
-                                (5, 11),
-                                (6, 10),
-                                (7, 9),
-                                (17, 26),
-                                (18, 25),
-                                (19, 24),
-                                (20, 23),
-                                (21, 22),
-                                (31, 35),
-                                (32, 34),
-                                (36, 45),
-                                (37, 44),
-                                (38, 43),
-                                (39, 42),
-                                (40, 47),
-                                (41, 46),
-                                (48, 52),
-                                (49, 51),
-                                (56, 54),
-                                (57, 53),
-                                (58, 62),
-                                (59, 61),
-                                (65, 63)
-                            ]
-                            points = copy.copy(faces[0].face_3d)
-                            for a, b in pairs:
-                                x = (points[a, 0] - points[b, 0]) / 2.0
-                                y = (points[a, 1] + points[b, 1]) / 2.0
-                                z = (points[a, 2] + points[b, 2]) / 2.0
-                                points[a, 0] = x
-                                points[b, 0] = -x
-                                points[[a, b], 1] = y
-                                points[[a, b], 2] = z
-                            points[[8, 27, 28, 29, 33, 50, 55, 60, 64], 0] = 0.0
-                            points[30, :] = 0.0
-                            with open(dump_points, "w") as fh:
-                                fh.write(repr(points))
                         break
                 failures = 0
-                landmarks = np.delete(landmarks, [0, 0], axis=0)
+
             except Exception as e:
                 if e.__class__ == KeyboardInterrupt:
                     if silent == 0:
@@ -385,6 +303,7 @@ def run(ip="127.0.0.1", port=11573, fps=24, visualize = 0, dcap=None, use_dshowc
         average_tracking_time = 1000 * tracking_time / tracking_frames
         print(f"Average tracking time per detected face: {average_tracking_time:.2f} ms")
         print(f"Tracking time: {total_tracking_time:.3f} s\nFrames: {tracking_frames}\nFPS: {tracking_frames/total_tracking_time:.3f}")
-    return landmarks
+    return A_frame
 if __name__ == "__main__":
-    run(visualize=1, max_threads=4, capture="video.mp4")
+    frame = run(visualize=1, max_threads=4, capture="video.mp4")
+    print(frame, frame.size)
