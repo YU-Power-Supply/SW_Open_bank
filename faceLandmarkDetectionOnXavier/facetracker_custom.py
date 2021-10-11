@@ -73,7 +73,7 @@ def get_mouth_pen_ratio(frame, mouth_points, facial_landmarks):
     hor_line_lenght = hypot( (left_point[0] - right_point[0]), (left_point[1] - right_point[1])) 
     ver_line_lenght = hypot( (center_top[0] - center_bottom[0]), (center_top[1] - center_bottom[1])) 
     if ver_line_lenght != 0: 
-        ratio = hor_line_lenght / ver_line_lenght
+        ratio = ver_line_lenght / hor_line_lenght
     else: 
         ratio = 60 
     return ratio 
@@ -90,8 +90,11 @@ def get_blinking_ratio(frame, eye_points, facial_landmarks):
     hor_line_lenght = hypot( (left_point[0] - right_point[0]), (left_point[1] - right_point[1])) 
     ver_line_lenght = hypot( (center_top[0] - center_bottom[0]), (center_top[1] - center_bottom[1])) 
     ratio = hor_line_lenght / ver_line_lenght 
-    return ratio
-
+    if ver_line_lenght != 0: 
+        ratio = ver_line_lenght / hor_line_lenght
+    else: 
+        ratio = 60 
+    return ratio 
 
 max_threads = 1
 os.environ["OMP_NUM_THREADS"] = str(max_threads)
@@ -293,6 +296,8 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
                 left_eye_ratio = get_blinking_ratio(frame, l_eye_poits, landmarks) 
                 right_eye_ratio = get_blinking_ratio(frame, r_eye_points, landmarks) 
                 #blinking_ratio = (left_eye_ratio + right_eye_ratio) / 2
+                if landmarks.size != 136:
+                    landmarks = np.append(landmarks, np.zeros(136-landmarks.size), axis=0)
                 A_frame = np.vstack([A_frame, landmarks])
 
                 if not out is None:
