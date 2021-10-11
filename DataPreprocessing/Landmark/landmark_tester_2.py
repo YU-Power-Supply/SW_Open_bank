@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
     #save_point = "./1113.jpg" # put your image
     #image = cv2.imread(save_point)
-    cap = cv2.VideoCapture('./vi13.mp4')
+    cap = cv2.VideoCapture('./video.mp4')
     cap.set(3,640)
     cap.set(4,480)
     start = time.time()
