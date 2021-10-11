@@ -61,7 +61,30 @@ l_eye_poits = [36, 37, 38, 39, 40, 41]
 def midpoint(p1, p2): 
     return int((p1[0] + p2[0])/2), int((p1[1] + p2[1])/2) 
 
-def get_mouth_pen_ratio(frame, mouth_points, facial_landmarks): 
+def get_face_angle(frame, facial_landmarks): 
+    center_top = (facial_landmarks[mouth_points[12]*2], facial_landmarks[mouth_points[12]*2+1])
+    center_bottom = (facial_landmarks[mouth_points[16]*2], facial_landmarks[mouth_points[16]*2+1])
+    
+    left_point = (facial_landmarks[36*2], facial_landmarks[36*2+1])
+    right_point = (facial_landmarks[45*2], facial_landmarks[45*2+1])
+    
+    left_endpoint = (facial_landmarks[0*2], facial_landmarks[0*2+1])
+    right_endpoint = (facial_landmarks[15*2], facial_landmarks[15*2+1])
+    
+    left_len = left_point[0] - left_endpoint[0] #왼쪽눈끝점 - 왼쪽얼굴끝점
+    right_len = right_endpoint[0] - right_point[0] #오른족 얼굴끝점- 오른쪽눈끝점
+    
+    hor_line = cv2.line(frame, left_point, right_point, (0, 255, 0), 2)
+    ver_line = cv2.line(frame, center_top, center_bottom, (0, 255, 0), 2) 
+    hor_line_lenght = hypot( (left_point[0] - right_point[0]), (left_point[1] - right_point[1])) 
+    ver_line_lenght = hypot( (center_top[0] - center_bottom[0]), (center_top[1] - center_bottom[1])) 
+    if ver_line_lenght != 0: 
+        ratio = ver_line_lenght / hor_line_lenght
+    else: 
+        ratio = 60 
+    return ratio 
+
+def get_mouth_ratio(frame, mouth_points, facial_landmarks): 
     center_top = (facial_landmarks[mouth_points[12]*2], facial_landmarks[mouth_points[12]*2+1])
     center_bottom = (facial_landmarks[mouth_points[16]*2], facial_landmarks[mouth_points[16]*2+1])
     
@@ -292,9 +315,10 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
                     if not log is None:
                         log.write("\r\n")
                         log.flush()
-                mouths = get_mouth_pen_ratio(frame, mouth_points, landmarks)
+                mouths = get_mouth_ratio(frame, mouth_points, landmarks)
                 left_eye_ratio = get_blinking_ratio(frame, l_eye_poits, landmarks) 
                 right_eye_ratio = get_blinking_ratio(frame, r_eye_points, landmarks) 
+                get_face_angle(frame, landmarks)
                 #blinking_ratio = (left_eye_ratio + right_eye_ratio) / 2
                 if landmarks.size != 136:
                     landmarks = np.append(landmarks, np.zeros(136-landmarks.size), axis=0)
