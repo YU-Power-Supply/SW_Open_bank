@@ -5,6 +5,7 @@ import argparse
 import traceback
 import gc
 import dshowcapture
+from math import hypot
 '''
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-i", "--ip", help="Set IP address for sending tracking data", default="127.0.0.1")
@@ -53,6 +54,44 @@ if os.name == 'nt':
     parser.add_argument("--blackmagic-options", type=str, help="When set, this additional option string is passed to the blackmagic capture library", default=None)
     parser.add_argument("--priority", type=int, help="When set, the process priority will be changed", default=None, choices=[0, 1, 2, 3, 4, 5])
 '''
+mouth_points = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65]
+r_eye_points = [42, 43, 44, 45, 46, 47]
+l_eye_poits = [36, 37, 38, 39, 40, 41]
+
+def midpoint(p1, p2): 
+    return int((p1[0] + p2[0])/2), int((p1[1] + p2[1])/2) 
+
+def get_mouth_pen_ratio(frame, mouth_points, facial_landmarks): 
+    center_top = (facial_landmarks[mouth_points[12]*2], facial_landmarks[mouth_points[12]*2+1])
+    center_bottom = (facial_landmarks[mouth_points[16]*2], facial_landmarks[mouth_points[16]*2+1])
+    
+    left_point = (facial_landmarks[mouth_points[10]*2], facial_landmarks[mouth_points[10]*2+1])
+    right_point = (facial_landmarks[mouth_points[14]*2], facial_landmarks[mouth_points[14]*2+1])
+    
+    hor_line = cv2.line(frame, left_point, right_point, (0, 255, 0), 2)
+    ver_line = cv2.line(frame, center_top, center_bottom, (0, 255, 0), 2) 
+    hor_line_lenght = hypot( (left_point[0] - right_point[0]), (left_point[1] - right_point[1])) 
+    ver_line_lenght = hypot( (center_top[0] - center_bottom[0]), (center_top[1] - center_bottom[1])) 
+    if ver_line_lenght != 0: 
+        ratio = hor_line_lenght / ver_line_lenght
+    else: 
+        ratio = 60 
+    return ratio 
+
+def get_blinking_ratio(frame, eye_points, facial_landmarks): 
+    center_top = midpoint(facial_landmarks[eye_points[1]*2:eye_points[1]*2+2], facial_landmarks[eye_points[2]*2:eye_points[2]*2+2])
+    center_bottom = midpoint(facial_landmarks[eye_points[4]*2:eye_points[4]*2+2], facial_landmarks[eye_points[5]*2:eye_points[5]*2+2])
+    
+    left_point = (facial_landmarks[eye_points[0]*2], facial_landmarks[eye_points[0]*2+1])
+    right_point = (facial_landmarks[eye_points[3]*2], facial_landmarks[eye_points[3]*2+1])
+
+    hor_line = cv2.line(frame, left_point, right_point, (0, 255, 0), 2) 
+    ver_line = cv2.line(frame, center_top, center_bottom, (0, 255, 0), 2) 
+    hor_line_lenght = hypot( (left_point[0] - right_point[0]), (left_point[1] - right_point[1])) 
+    ver_line_lenght = hypot( (center_top[0] - center_bottom[0]), (center_top[1] - center_bottom[1])) 
+    ratio = hor_line_lenght / ver_line_lenght 
+    return ratio
+
 
 max_threads = 1
 os.environ["OMP_NUM_THREADS"] = str(max_threads)
@@ -154,7 +193,7 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
         need_reinit = 0
         failures = 0
         source_name = input_reader.name
-        A_frame = np.empty((0, 136), dtype=float)
+        A_frame = np.empty((0, 136), dtype=int)
         while input_reader.is_open():
             if not input_reader.is_open() or need_reinit == 1:
                 input_reader = InputReader(capture, raw_rgb, width, height, fps, use_dshowcapture=use_dshowcapture_flag, dcap=dcap)
@@ -201,7 +240,7 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
                     tracking_time += inference_time / len(faces)
                     tracking_frames += 1
                 detected = False
-                landmarks = np.array([], float) # landmarks in a frame
+                landmarks = np.array([], int) # landmarks in a frame
                 for face_num, f in enumerate(faces):
                     f = copy.copy(f)
                     f.id += face_id_offset
@@ -214,7 +253,6 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
                         log.write(f"{frame_count},{now},{fwidth},{fheight},{fps},{face_num},{f.id},{f.eye_blink[0]},{f.eye_blink[1]},{f.conf},{f.success},{f.pnp_error},{f.quaternion[0]},{f.quaternion[1]},{f.quaternion[2]},{f.quaternion[3]},{f.euler[0]},{f.euler[1]},{f.euler[2]},{f.rotation[0]},{f.rotation[1]},{f.rotation[2]},{f.translation[0]},{f.translation[1]},{f.translation[2]}")
 
                     for pt_num, (x,y,c) in enumerate(f.lms):
-                        landmarks = np.append(landmarks, [x, y], axis=0)
                         if not log is None:
                             log.write(f",{y},{x},{c}")
                         if pt_num == 66 and (f.eye_blink[0] < 0.30 or c < 0.20):
@@ -223,6 +261,8 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
                             continue
                         x = int(x + 0.5)
                         y = int(y + 0.5)
+                        
+                        landmarks = np.append(landmarks, [y, x], axis=0)
                         if visualize != 0 or not out is None:
                             color = (0, 255, 0)
                             if pt_num >= 66:
@@ -249,7 +289,10 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
                     if not log is None:
                         log.write("\r\n")
                         log.flush()
-                        
+                mouths = get_mouth_pen_ratio(frame, mouth_points, landmarks)
+                left_eye_ratio = get_blinking_ratio(frame, l_eye_poits, landmarks) 
+                right_eye_ratio = get_blinking_ratio(frame, r_eye_points, landmarks) 
+                #blinking_ratio = (left_eye_ratio + right_eye_ratio) / 2
                 A_frame = np.vstack([A_frame, landmarks])
 
                 if not out is None:
