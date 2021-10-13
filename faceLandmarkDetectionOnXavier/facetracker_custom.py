@@ -74,8 +74,8 @@ def get_face_angle(frame, facial_landmarks):
     left_len = left_point[0] - left_endpoint[0] #왼쪽눈끝점 - 왼쪽얼굴끝점
     right_len = right_endpoint[0] - right_point[0] #오른족 얼굴끝점- 오른쪽눈끝점
     
-    hor_line = cv2.line(frame, left_point, right_point, (0, 255, 0), 2)
-    ver_line = cv2.line(frame, center_top, center_bottom, (0, 255, 0), 2) 
+    #hor_line = cv2.line(frame, left_point, right_point, (0, 255, 0), 2)
+    #ver_line = cv2.line(frame, center_top, center_bottom, (0, 255, 0), 2) 
     hor_line_lenght = hypot( (left_point[0] - right_point[0]), (left_point[1] - right_point[1])) 
     ver_line_lenght = hypot( (center_top[0] - center_bottom[0]), (center_top[1] - center_bottom[1])) 
     if ver_line_lenght != 0: 
@@ -91,8 +91,8 @@ def get_mouth_ratio(frame, mouth_points, facial_landmarks):
     left_point = (facial_landmarks[mouth_points[10]*2], facial_landmarks[mouth_points[10]*2+1])
     right_point = (facial_landmarks[mouth_points[14]*2], facial_landmarks[mouth_points[14]*2+1])
     
-    hor_line = cv2.line(frame, left_point, right_point, (0, 255, 0), 2)
-    ver_line = cv2.line(frame, center_top, center_bottom, (0, 255, 0), 2) 
+    #hor_line = cv2.line(frame, left_point, right_point, (0, 255, 0), 2)
+    #ver_line = cv2.line(frame, center_top, center_bottom, (0, 255, 0), 2) 
     hor_line_lenght = hypot( (left_point[0] - right_point[0]), (left_point[1] - right_point[1])) 
     ver_line_lenght = hypot( (center_top[0] - center_bottom[0]), (center_top[1] - center_bottom[1])) 
     if ver_line_lenght != 0: 
@@ -108,11 +108,11 @@ def get_blinking_ratio(frame, eye_points, facial_landmarks):
     left_point = (facial_landmarks[eye_points[0]*2], facial_landmarks[eye_points[0]*2+1])
     right_point = (facial_landmarks[eye_points[3]*2], facial_landmarks[eye_points[3]*2+1])
 
-    hor_line = cv2.line(frame, left_point, right_point, (0, 255, 0), 2) 
-    ver_line = cv2.line(frame, center_top, center_bottom, (0, 255, 0), 2) 
+    #hor_line = cv2.line(frame, left_point, right_point, (0, 255, 0), 2) 
+    #ver_line = cv2.line(frame, center_top, center_bottom, (0, 255, 0), 2) 
     hor_line_lenght = hypot( (left_point[0] - right_point[0]), (left_point[1] - right_point[1])) 
     ver_line_lenght = hypot( (center_top[0] - center_bottom[0]), (center_top[1] - center_bottom[1])) 
-    ratio = hor_line_lenght / ver_line_lenght 
+    ratio = hor_line_lenght / ver_line_lenght
     if ver_line_lenght != 0: 
         ratio = ver_line_lenght / hor_line_lenght
     else: 
@@ -179,8 +179,8 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
             fps = min(fps, input_reader.device.get_fps())
     else:
         input_reader = InputReader(capture, raw_rgb, width, height, fps, use_dshowcapture=use_dshowcapture_flag)
-    if type(input_reader.reader) == VideoReader:
-        fps = 0
+    #if type(input_reader.reader) == VideoReader:
+    #    fps = 0
         
     log = None
     out = None
@@ -319,7 +319,10 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
                 left_eye_ratio = get_blinking_ratio(frame, l_eye_poits, landmarks) 
                 right_eye_ratio = get_blinking_ratio(frame, r_eye_points, landmarks) 
                 get_face_angle(frame, landmarks)
-                #blinking_ratio = (left_eye_ratio + right_eye_ratio) / 2
+                blinking_ratio = (left_eye_ratio + right_eye_ratio) / 2
+                if blinking_ratio < 0.18:
+                    print("don't sleep!!" + str(blinking_ratio))
+                
                 if landmarks.size != 136:
                     landmarks = np.append(landmarks, np.zeros(136-landmarks.size), axis=0)
                 A_frame = np.vstack([A_frame, landmarks])
@@ -377,5 +380,5 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
         print(f"Tracking time: {total_tracking_time:.3f} s\nFrames: {tracking_frames}\nFPS: {tracking_frames/total_tracking_time:.3f}")
     return A_frame
 if __name__ == "__main__":
-    frame = run(visualize=1, max_threads=4, capture="video.mp4")
+    frame = run(visualize=1, max_threads=4, fps=10, capture="video.mp4")
     print(frame, frame.size)
