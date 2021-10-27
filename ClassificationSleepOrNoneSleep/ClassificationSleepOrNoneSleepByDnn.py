@@ -15,12 +15,10 @@ from tensorflow.keras.models import load_model
 
 
 def train(sleepPath, nonSleepPath, savePath):
-    
     pointPerFramePerMotion = []
     frameNum = 25
     keyPointNum = 136
 
-    ## read data
     # read sleep data
     for file in os.listdir(sleepPath):
         pointPerFrame = []
@@ -33,8 +31,6 @@ def train(sleepPath, nonSleepPath, savePath):
                 pointPerFrame.append(keyPoints)
             pointPerFramePerMotion.append(pointPerFrame)
             
-
-    
     # read nonsleep data
     for file in os.listdir(nonSleepPath):
         pointPerFrame = []
@@ -53,21 +49,18 @@ def train(sleepPath, nonSleepPath, savePath):
             with open(f"{sleepPath}/{file}", "r", encoding = 'UTF8') as f:
                 groundTruth.append(int(f.read()))
                 
-
     # read groundTruth nonsleep data
     for file in os.listdir(nonSleepPath):
         if file[-10:]== "ground.txt":
             with open(f"{nonSleepPath}/{file}", "r", encoding = 'UTF8') as f:
                 groundTruth.append(int(f.read()))
-                
-
 
     pointPerFramePerMotion = tf.constant(pointPerFramePerMotion, dtype = tf.float32) # prame per points
     # print("pointPerFrameMotion`s dims : ", tf.shape(pointPerFramePerMotion))
 
     groundTruth = tf.constant(groundTruth, dtype = tf.float32) # sleep = 1, didn`t sleep = 0
     print("groundTruth`s dims : ", tf.shape(groundTruth))
-# 
+
     # '''
     # testX = tf.constant([[[random.randrange(1, 10) for _ in range(keyPointNum)] for _ in range(frameNum)] for _ in range(2)], dtype = tf.float32) # prame per points
     # testY = tf.constant([ [random.randrange(0, 2) ]for _ in range(2)]) # sleep = 1, didn`t sleep = 0
@@ -75,13 +68,9 @@ def train(sleepPath, nonSleepPath, savePath):
     # print(tf.shape(testX))
     # print(tf.shape(testY))
     # '''
-# 
-# 
-   # 
-# 
-# 
+
+
     # Training Model Define
-    
     model = Sequential([
         Flatten(input_shape= (frameNum,keyPointNum)), 
         Dense(units= 64,  activation='relu'),
@@ -190,8 +179,6 @@ def dataPreprocessingMakeDir(sleepPath, nonSleepPath, dirPath, dir):
 
 
 def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
-    
-
     dirChecker = []
     for dir in os.listdir(os.getcwd()):
         dirChecker.append(dir)
@@ -308,6 +295,7 @@ def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
                     f.write(grounds+ " ") 
 
        
+
 
 if __name__=="__main__":
 
