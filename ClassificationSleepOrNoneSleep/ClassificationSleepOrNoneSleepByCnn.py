@@ -13,18 +13,19 @@ from tensorflow.keras import Sequential
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import load_model
 
-motionNum = 2
-keyPointNum = 136
+motionNum = 3
+keyPointNum = 68
 frameNum = 25
+XorY = 2
 
-testX = tf.constant([[[random.randrange(1, 10) for _ in range(keyPointNum)] for _ in range(frameNum)] for _ in range(motionNum)], dtype = tf.float32) # prame per points
-testY = tf.constant([ [random.randrange(0, 2) ]for _ in range(2)]) # sleep = 1, didn`t sleep = 0
+testX = tf.constant([[[[random.randrange(1, 10) for _ in range(XorY) ]for _ in range(keyPointNum)] for _ in range(frameNum)] for _ in range(motionNum)], dtype = tf.float32) # prame per points
+testY = tf.constant([ [random.randrange(0, 2) ]for _ in range(3)]) # sleep = 1, didn`t sleep = 0
 
 print(tf.shape(testX))
 print(tf.shape(testY))
 # Training Model Define ... VGGNet style 14 Layerts network model
 model = Sequential([
-    Conv2D(input_shape = (28, 28, 1), kernel_size = (3, 3), filters = 32, padding = 'same', activation = 'relu'),
+    Conv2D(input_shape = (frameNum, keyPointNum, XorY), kernel_size = (3, 3), filters = 32, padding = 'same', activation = 'relu'),
     Conv2D(kernel_size = (3, 3), filters = 64, padding = 'same', activation = 'relu'),
     MaxPool2D(pool_size = (2, 2)),
     Dropout(rate = 0.5),
@@ -45,5 +46,4 @@ model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
               metrics=['acc'] )  # ! gradinet descent 종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
 ## Moddel Training
 h = model.fit( testX, testY, epochs = 10)
-model.save(savePath)
 model.summary()
