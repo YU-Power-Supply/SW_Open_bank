@@ -1,42 +1,49 @@
 import tensorflow as tf
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
+import cv2, dlib
+from imutils import face_utils
 
-from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPool2D
+import time
+import random
+import sys
+import os
+
+from tensorflow.keras.layers import Dense, Dropout, Flatten, Conv2D, MaxPool2D
 from tensorflow.keras import Sequential
 from tensorflow.keras.optimizers import Adam
-
-from tensorflow.keras.datasets.fashion_mnist import load_data
-
-# %%
-(x_train, y_train), (x_test,y_test) = load_data()
-
-# %%
-frameNum = 9
-keyPointNum = 9
+from tensorflow.keras.models import load_model
 
 motionNum = 2
+keyPointNum = 136
+frameNum = 25
 
-PointPerFrame = tf.constant([[[[2, 4] for _ in range(frameNum)] for _ in range(keyPointNum)] for _ in range(motionNum)], dtype = tf.float32) # 프레임당 좌표
-groundTruth = tf.constant([[0], [1]]) # sleep = 1, didn`t sleep = 0
+testX = tf.constant([[[random.randrange(1, 10) for _ in range(keyPointNum)] for _ in range(frameNum)] for _ in range(motionNum)], dtype = tf.float32) # prame per points
+testY = tf.constant([ [random.randrange(0, 2) ]for _ in range(2)]) # sleep = 1, didn`t sleep = 0
 
-
-PointPerFrame # 텐서 객체로 잘 변환 되었나 확인
-#groundTruth # 결과 값도 잘 변환 되었나 확인
-
-# %%
-
-model = Sequential()
-
-model.add( Flatten( input_shape= (28,28)))
-model.add( Dense( units= 64,  activation='relu') )
-model.add( Dense( units= 10,  activation='softmax') )
+print(tf.shape(testX))
+print(tf.shape(testY))
+# Training Model Define ... VGGNet style 14 Layerts network model
+model = Sequential([
+    Conv2D(input_shape = (28, 28, 1), kernel_size = (3, 3), filters = 32, padding = 'same', activation = 'relu'),
+    Conv2D(kernel_size = (3, 3), filters = 64, padding = 'same', activation = 'relu'),
+    MaxPool2D(pool_size = (2, 2)),
+    Dropout(rate = 0.5),
+    Conv2D(kernel_size = (3, 3), filters = 128, padding = 'same', activation = 'relu'),
+    Conv2D(kernel_size = (3, 3), filters = 256, padding = 'valid', activation = 'relu'),
+    MaxPool2D(pool_size = (2, 2)),
+    Dropout(rate = 0.5),
+    Flatten(),
+    Dense(units = 512, activation = 'relu'),
+    Dropout(rate = 0.5),
+    Dense(units = 256, activation = 'relu'),
+    Dropout(rate = 0.5),
+    Dense(units = 10, activation = 'sigmoid')
+    
+])
+# model.add( Dense( units= 1,  activation='sigmoid') )
 model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
-              metrics=['acc'] )
-
-## loss 종류 알아보기 
-## sparse_categorical_crossentropy 등등 더 있음
-
-# %%
-h = model.fit( x_train, y_train, epochs = 10)
+              metrics=['acc'] )  # ! gradinet descent 종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
+## Moddel Training
+h = model.fit( testX, testY, epochs = 10)
+model.save(savePath)
+model.summary()
