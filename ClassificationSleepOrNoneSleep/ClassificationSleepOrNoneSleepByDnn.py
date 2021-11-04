@@ -14,49 +14,31 @@ from tensorflow.keras.models import load_model
 # print("dlib", dlib.__version__, "numpy", np.__version__)
 
 
-def train(sleepPath, nonSleepPath, savePath):
+def train(trainDataPath, saveModelPath):
     pointPerFramePerMotion = []
-    frameNum = 25
-    keyPointNum = 136
+    frameNum = 30
+    keyPointNum = 68
 
-    # read sleep data
-    for file in os.listdir(sleepPath):
-        pointPerFrame = []
-        if file[-10:]== "_train.txt":
-            file = open(f"{sleepPath}/{file}", "r", encoding = 'UTF8')
-            for frames in file:
-                keyPoints = frames.split()
-                if len(keyPoints) != 136: print(f"{file}")
-                keyPoints = list(map(int, keyPoints)) # convert str to integer
-                pointPerFrame.append(keyPoints)
-            pointPerFramePerMotion.append(pointPerFrame)
-            
-    # read nonsleep data
-    for file in os.listdir(nonSleepPath):
-        pointPerFrame = []
-        if file[-10:]== "_train.txt":
-            file = open(f"{nonSleepPath}/{file}", "r", encoding = 'UTF8')
-            for frames in file:
-                keyPoints = frames.split()
-                keyPoints = list(map(int, keyPoints)) # convert str to integer
-                pointPerFrame.append(keyPoints)
-            pointPerFramePerMotion.append(pointPerFrame)
 
+    
+    # read trainData
     groundTruth = []
-    # read groundTruth sleep data
-    for file in os.listdir(sleepPath):
-        if file[-10:]== "ground.txt":
-            with open(f"{sleepPath}/{file}", "r", encoding = 'UTF8') as f:
-                groundTruth.append(int(f.read()))
-                
-    # read groundTruth nonsleep data
-    for file in os.listdir(nonSleepPath):
-        if file[-10:]== "ground.txt":
-            with open(f"{nonSleepPath}/{file}", "r", encoding = 'UTF8') as f:
-                groundTruth.append(int(f.read()))
+    for motion in os.listdir(trainDataPath):
+        pointPerFrame = []
+        if motion[-4:]== ".txt":
+            file = open(f"{trainDataPath}/{motion}", "r", encoding = 'UTF8')
+            groundTruth.append(int(file.readline()))
+
+            for frames in file:
+                pointX = frames.split()
+                if len(pointX) != 68: print(f"{file}") # CHECK 68 POINT
+                pointX = list(map(int, pointX)) # convert str to integer
+                pointPerFrame.append(pointX)
+            pointPerFramePerMotion.append(pointPerFrame)
+
 
     pointPerFramePerMotion = tf.constant(pointPerFramePerMotion, dtype = tf.float32) # prame per points
-    # print("pointPerFrameMotion`s dims : ", tf.shape(pointPerFramePerMotion))
+    print("pointPerFrameMotion`s dims : ", tf.shape(pointPerFramePerMotion))
 
     groundTruth = tf.constant(groundTruth, dtype = tf.float32) # sleep = 1, didn`t sleep = 0
     print("groundTruth`s dims : ", tf.shape(groundTruth))
@@ -155,148 +137,68 @@ def test(model):
         if cv2.waitKey(1) == ord('q'):
             break
 
+def mkdirs(dirPath, fromNum, toNum):
+    for i in range(int(fromNum), int(toNum) +1):
+        try:
+            os.makedirs(f"{dirPath}/{i}")
+        except OSError:
+            print ('Error: Creating directory.')
 
-def dataPreprocessingMakeDir(sleepPath, nonSleepPath, dirPath, dir):
-    try:
-        if not os.path.exists(f"{sleepPath}"): # if you don't have same dir, create
-            os.makedirs(f"{sleepPath}")
-    except OSError:
-        print ('Error: Creating directory. ' +  f"{sleepPath}")
 
-    try:
-        if not os.path.exists(f"{nonSleepPath}"): # if you don't have same dir, create
-            os.makedirs(f"{nonSleepPath}")
-    except OSError:
-        print ('Error: Creating directory. ' +  f"{nonSleepPath}")
-        
-    sleepScenarios = ["02", "03", "09", "10", "16", "17", "21", "22", "28", "29"]
+def dataPreprocessing(imgPath, fromMotion, toMotion):
     
-    for dir in os.listdir(dirPath):
-        if (dir[11:13]) in sleepScenarios:
-            os.rename(f"{dirPath}/{dir}", f"{sleepPath}/{dir}")
-        else:
-            os.rename(f"{dirPath}/{dir}", f"{nonSleepPath}/{dir}")
-
-
-def dataPreprocessing(sleepPath, nonSleepPath, dirPath):
-    dirChecker = []
-    for dir in os.listdir(os.getcwd()):
-        dirChecker.append(dir)
-
-    # Labeling data by directory 
-    # if already there are sleep && nonsleep dir this method don`t operate
-    if (sleepPath not in dirChecker) or (nonSleepPath not in dirChecker):
-        dataPreprocessingMakeDir(sleepPath, nonSleepPath, dirPath, dir)
-
-    
-
     # face detect && find keypoints on landmark 
     detector = dlib.get_frontal_face_detector()
     predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
     keyPointModel = ('models/2018_12_17_22_58_35.h5')
 
     
-    imgCnt = 0
+    groundTruth = "1"
+    
     motionCnt = 0
-    frameNum = 25
-    keyPointNum = 136
+    frameNum = 30
+    keyPointNum = 68
 
-    for dir in os.listdir(sleepPath): # sleep images
-        groundTruth = []
+    
+ 
+    for motion in range(int(fromMotion),int(toMotion)+1 ):
+        pointPerFrame = []
+        motionCnt += 1
+        frameCnt = 0
+        
+        with open(f"{imgPath}/{motion}.txt", "w", encoding = 'UTF8') as f:
+            f.write(groundTruth)
 
-        if not (dir[-4:] == ".txt"):
-            pointPerFrame = []
-            motionCnt += 1
+        frameList = []
+        for frame in os.listdir(f"{imgPath}/{motion}"):
+            frameList.append(frame)
+        frameList.sort()
 
-            groundTruth.append("1") # sleep : True
-            for file in os.listdir(f"{sleepPath}/{dir}"):
-                img = cv2.imread(f'{sleepPath}/{dir}/{file}')
-                faces = detector(img, 1)
-                points = []
+        for frame in frameList: 
+            img = cv2.imread(f"{imgPath}/{motion}/{frame}")
+            faces = detector(img, 1)
+            
+            if(len(faces) == 0) : 
+                print(f"\n img : {frame}, couldn`t detect this face")
+            else :
+                frameCnt += 1
+                shapes = predictor(img, faces[0])
+                shapes = face_utils.shape_to_np(shapes)
 
-                #얼굴이 detect되지 않았을 때
-                if (len(faces) == 0) : print(f"\nimg : {file},  couldn`t detect present face ")
-                else: 
-                    shapes = predictor(img, faces[0])
-                    shapes = face_utils.shape_to_np(shapes)
-                    for keyPointXY in shapes:
-                        for keyPoint in keyPointXY:
-                            points.append(keyPoint)
 
-                    imgCnt += 1
-                    print(f" img : {file} , The number of completed [sleep image] : {imgCnt} / 41053") # image checker
-                    pointPerFrame.append(points)
-                              
-                            
-            for _ in range(frameNum - len(pointPerFrame)): # detect 되지 않은것이 있을 때
-                pointPerFrame.append(pointPerFrame[-1])
-                imgCnt += 1
-            print(f"The number of completed [sleep] motion : {motionCnt} / 1658") # motion checker
-
-            # convert integer to str 
-            for i in range(len(pointPerFrame)):
-                pointPerFrame[i] = list(map(str, pointPerFrame[i]))
-
-            with open(f"{sleepPath}/{dir}_train.txt", "w", encoding = 'UTF8') as f:
-                for frames in pointPerFrame:
-                    if len(frames) != 136 : print(dir)
-                    for points in frames:
-                        f.write(points+" ") 
+                with open(f"{imgPath}/{motion}.txt", "a", encoding = 'UTF8') as f:
                     f.write("\n")
-
-            with open(f"{sleepPath}/{dir}_ground.txt", "w", encoding = 'UTF8') as f:
-                for grounds in groundTruth:
-                    f.write(grounds+ " ")  
-
-
-
-    for dir in os.listdir(nonSleepPath): # nonsleep images
-        groundTruth = []
-
-        if not (dir[-4:] == ".txt"):
-            pointPerFrame = []
-            motionCnt += 1
-
-            groundTruth.append("0") # nonsleep : True
-            for file in os.listdir(f"{nonSleepPath}/{dir}"):
-                img = cv2.imread(f'{nonSleepPath}/{dir}/{file}')
-                faces = detector(img, 1)
-                points = []
+                    for pointY in shapes[:,1]:
+                        f.write(str(pointY) + " ")
                 
-
-                if (len(faces) == 0) : print(f"\nimg : {file},  couldn`t detect present face ")
-                else :
-                    shapes = predictor(img, faces[0])
-                    shapes = face_utils.shape_to_np(shapes)
-                    for keyPointXY in shapes:
-                        for keyPoint in keyPointXY:
-                            points.append(keyPoint)
-
-                    imgCnt += 1
-                    print(f" img : {file} , The number of completed [nonsleep image] : {imgCnt} / 41053") # image checker
-                    pointPerFrame.append(points)
-
-            for _ in range(25 - len(pointPerFrame)): # detect 되지 않은것이 있을 때
-                pointPerFrame.append(pointPerFrame[-1])
-                imgCnt += 1
-            print(f"The number of completed [nonsleep] motion : {motionCnt} / 1658") # motion checker
-
-            for i in range(len(pointPerFrame)):
-                pointPerFrame[i] = list(map(str, pointPerFrame[i]))
-
-            with open(f"{nonSleepPath}/{dir}_train.txt", "w", encoding = 'UTF8') as f:
-                for frames in pointPerFrame:
-                    for points in frames:
-                        f.write(points+" ")
+        for _ in range(30-frameCnt):
+            with open(f"{imgPath}/{motion}.txt", "a", encoding = 'UTF8') as f:
                     f.write("\n")
-
-            with open(f"{nonSleepPath}/{dir}_ground.txt", "w", encoding = 'UTF8') as f:
-                for grounds in groundTruth:
-                    f.write(grounds+ " ") 
-
-       
-
-
+                    for pointY in shapes[:,1]:
+                        f.write(str(pointY) + " ")
+        print(f"motion[{motion}] : detected total {frameCnt} motions \ntotal {motionCnt} motions completed ")
+        
+                        
 if __name__=="__main__":
 
     model = ""
@@ -305,13 +207,15 @@ if __name__=="__main__":
     if len(sys.argv) == 1:
         print("명령 프롬프트로 실행하세요")
         exit(0)
-    
-    elif sys.argv[1] == "train": # [train] [sleepPath] [nonSleepPath] [save_path]
-        train(sys.argv[2], sys.argv[3], sys.argv[4])
-    elif sys.argv[1] == "test": # [test] [model_path] 
+    elif sys.argv[1] == "mkdirs": # dirPath fromNum toNum 
+        mkdirs(sys.argv[2], sys.argv[3], sys.argv[4])
+
+    elif sys.argv[1] == "train": # [train] [trainDataPath] [saveModelPath]
+        train(sys.argv[2], sys.argv[3])
+    elif sys.argv[1] == "test": # [test] [modelPath] 
         model = f"{sys.argv[2]}"
         test(model)
-    elif sys.argv[1] == 'data': # [data] [saveSleepPath] [saveNonSleepPath] [originImgPath]
+    elif sys.argv[1] == 'data': # [data] [imgsPath] [fromMotion] [toMotion]
         dataPreprocessing(sys.argv[2], sys.argv[3], sys.argv[4])
 
     else :
