@@ -6,6 +6,7 @@ import traceback
 import gc
 import dshowcapture
 from math import hypot
+import matplotlib.pyplot as plt
 '''
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-i", "--ip", help="Set IP address for sending tracking data", default="127.0.0.1")
@@ -76,6 +77,16 @@ def get_face_angle(frame, facial_landmarks):
     left_len = left_point[0] - left_toppoint[0] #왼쪽눈끝점 - 왼쪽얼굴끝점
     right_len = right_toppoint[0] - right_point[0] #오른족 얼굴끝점- 오른쪽눈끝점
     
+    
+    #시연용 코드
+    cv2.line(frame, left_eyebrow, right_eyebrow, (255, 0, 0), 2)
+    cv2.line(frame, left_toppoint, right_toppoint, (0, 255, 0), 2)
+    cv2.circle(frame, left_point, 5, (255, 0, 0), 2)
+    cv2.circle(frame, right_point, 5, (255, 0, 0), 2)
+    cv2.circle(frame, left_toppoint, 5, (0, 255, 0), 2)
+    cv2.circle(frame, right_toppoint, 5, (0, 255, 0), 2)
+    
+    
     if left_len < 0 or right_len < 0:
         cv2.putText(frame,"yaw over!!",org,font,1,(255,0,255),2)
         return True
@@ -85,13 +96,6 @@ def get_face_angle(frame, facial_landmarks):
     if midpoint(left_eyebrow, right_eyebrow)[1] > midpoint(left_toppoint, right_toppoint)[1]:
         cv2.putText(frame,"pitch over!!",org,font,1,(0,255,255),2)
         return True
-    #시연용 코드
-    cv2.line(frame, left_eyebrow, right_eyebrow, (255, 0, 0), 2)
-    cv2.line(frame, left_toppoint, right_toppoint, (0, 255, 0), 2)
-    cv2.circle(frame, left_point, 5, (255, 0, 0), 2)
-    cv2.circle(frame, right_point, 5, (255, 0, 0), 2)
-    cv2.circle(frame, left_toppoint, 5, (0, 255, 0), 2)
-    cv2.circle(frame, right_toppoint, 5, (0, 255, 0), 2)
     
     return False
     
@@ -136,9 +140,50 @@ def eye_checker(frame, l_eye_points, r_eye_points, facial_landmarks, sleep_check
     right_eye_ratio = get_blinking_ratio(frame, r_eye_points, facial_landmarks)
     
     if (left_eye_ratio + right_eye_ratio) / 2 < 0.18:
-        return sleep_check+1
+        return sleep_check+1, (left_eye_ratio + right_eye_ratio) / 2
     else:
-        return 0
+        return 0 , (left_eye_ratio + right_eye_ratio) / 2
+    
+def run_yolo(img, colors, net, output_layers, classes, width, height):
+    
+    blob = cv2.dnn.blobFromImage(img, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
+    net.setInput(blob)
+    outs = net.forward(output_layers)
+    
+    class_ids = []
+    confidences = []
+    boxes = []
+    for out in outs:
+        for detection in out:
+            scores = detection[5:]
+            class_id = np.argmax(scores)
+            confidence = scores[class_id]
+            if confidence > 0.5:
+                # Object detected
+                center_x = int(detection[0] * width)
+                center_y = int(detection[1] * height)
+                w = int(detection[2] * width)
+                h = int(detection[3] * height)
+                # 좌표
+                x = int(center_x - w / 2)
+                y = int(center_y - h / 2)
+                boxes.append([x, y, w, h])
+                confidences.append(float(confidence))
+                class_ids.append(class_id)
+
+    indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
+    
+    font = cv2.FONT_HERSHEY_PLAIN
+    for i in range(len(boxes)):
+        boxes[indexes.tolist().index([0])]
+        if i in indexes:
+            x, y, w, h = boxes[i]
+            label = str(classes[class_ids[i]])
+            color = colors[i]
+            #print(i, class_ids[i], classes[class_ids[class_ids.index([0])]], boxes[class_ids.index([0])])
+            cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
+            cv2.putText(img, label, (x, y + 30), font, 3, color, 3)
+    
 
 max_threads = 1
 os.environ["OMP_NUM_THREADS"] = str(max_threads)
@@ -191,7 +236,7 @@ from tracker import Tracker, get_model_base_path
 org=(50,75) 
 font=cv2.FONT_HERSHEY_SIMPLEX
 
-def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_data="",raw_rgb=0, width=640, height=360, video_out = None, face_id_offset = 0, video_scale=1, threshold=None, max_threads=max_threads, faces=1, discard_after=10, scan_every=3, silent=0, model=3, model_dir=None, gaze_tracking=1, detection_threshold=0.6, scan_retinaface=0, max_feature_updates=900, no_3d_adapt=1, try_hard=0, video_fps = 24, dump_points = ""):
+def run(fps=15, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_data="",raw_rgb=0, width=640, height=360, video_out = None, face_id_offset = 0, video_scale=1, threshold=None, max_threads=max_threads, faces=1, discard_after=10, scan_every=3, silent=0, model=3, model_dir=None, gaze_tracking=1, detection_threshold=0.6, scan_retinaface=0, max_feature_updates=900, no_3d_adapt=1, try_hard=0, video_fps = 24, dump_points = ""):
     
     use_dshowcapture_flag = False
     if os.name == 'nt':
@@ -216,7 +261,17 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
     tracking_frames = 0
     frame_count = 0
     sleep_check = 0
+    plotdata = [[], []]
+    plotx = 0
 
+    #yolo-code
+    net = cv2.dnn.readNet("yolo-obj_final.weights", "yolo-obj.cfg")
+    classes = ['Face', 'Leye', 'Reye', 'Mouth', 'Phone', 'Cigar']
+
+    layer_names = net.getLayerNames()
+    output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+    colors = np.random.uniform(0, 255, size=(len(classes), 3))
+    #done
     features = ["eye_l", "eye_r", "eyebrow_steepness_l", "eyebrow_updown_l", "eyebrow_quirk_l", "eyebrow_steepness_r", "eyebrow_updown_r", "eyebrow_quirk_r", "mouth_corner_updown_l", "mouth_corner_inout_l", "mouth_corner_updown_r", "mouth_corner_inout_r", "mouth_open", "mouth_wide"]
 
     if log_data != "":
@@ -281,6 +336,7 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
             try:
                 inference_start = time.perf_counter()
                 faces = tracker.predict(frame)
+                run_yolo(frame, colors, net, output_layers, classes, fwidth, fheight)
                 if len(faces) > 0:
                     inference_time = (time.perf_counter() - inference_start)
                     total_tracking_time += inference_time
@@ -339,11 +395,15 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
                 mouths = get_mouth_ratio(frame, mouth_points, landmarks)
                 
                 if get_face_angle(frame, landmarks):
-                    head_check = 15
+                    head_check = fps
                 else:
-                    head_check = 30
-
-                sleep_check = eye_checker(frame, l_eye_points, r_eye_points, landmarks, sleep_check)
+                    head_check = fps * 2
+                plotx += 1
+                sleep_check, ploty = eye_checker(frame, l_eye_points, r_eye_points, landmarks, sleep_check)
+                plotdata[0].append(plotx)
+                plotdata[1].append(ploty)
+                
+                
                 
                 if sleep_check > head_check:
                     cv2.putText(frame,"Wake up!!",(50, 50),font,1,(255,0,0),2)
@@ -401,11 +461,15 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
         out.release()
     cv2.destroyAllWindows()
 
+    plt.plot(plotdata[0], plotdata[1], 'ro', plotdata[0], plotdata[1], 'b--')
+    plt.show()
+
     if silent == 0 and tracking_frames > 0:
         average_tracking_time = 1000 * tracking_time / tracking_frames
         print(f"Average tracking time per detected face: {average_tracking_time:.2f} ms")
         print(f"Tracking time: {total_tracking_time:.3f} s\nFrames: {tracking_frames}\nFPS: {tracking_frames/total_tracking_time:.3f}")
     return A_frame
 if __name__ == "__main__":
-    frame = run(visualize=1, max_threads=4, fps=15,capture="video.mp4")
+    frame = run(visualize=1, max_threads=4, capture="video1.mp4")
     print(frame, frame.size)
+    plt.show()
