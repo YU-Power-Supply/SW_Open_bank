@@ -1,7 +1,6 @@
 import copy
 import os
 import sys
-import argparse
 import traceback
 import gc
 import dshowcapture
@@ -144,46 +143,6 @@ def eye_checker(frame, l_eye_points, r_eye_points, facial_landmarks, sleep_check
     else:
         return 0 , (left_eye_ratio + right_eye_ratio) / 2
     
-def run_yolo(img, colors, net, output_layers, classes, width, height):
-    
-    blob = cv2.dnn.blobFromImage(img, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
-    net.setInput(blob)
-    outs = net.forward(output_layers)
-    
-    class_ids = []
-    confidences = []
-    boxes = []
-    for out in outs:
-        for detection in out:
-            scores = detection[5:]
-            class_id = np.argmax(scores)
-            confidence = scores[class_id]
-            if confidence > 0.5:
-                # Object detected
-                center_x = int(detection[0] * width)
-                center_y = int(detection[1] * height)
-                w = int(detection[2] * width)
-                h = int(detection[3] * height)
-                # 좌표
-                x = int(center_x - w / 2)
-                y = int(center_y - h / 2)
-                boxes.append([x, y, w, h])
-                confidences.append(float(confidence))
-                class_ids.append(class_id)
-
-    indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
-    
-    font = cv2.FONT_HERSHEY_PLAIN
-    for i in range(len(boxes)):
-        boxes[indexes.tolist().index([0])]
-        if i in indexes:
-            x, y, w, h = boxes[i]
-            label = str(classes[class_ids[i]])
-            color = colors[i]
-            #print(i, class_ids[i], classes[class_ids[class_ids.index([0])]], boxes[class_ids.index([0])])
-            cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
-            cv2.putText(img, label, (x, y + 30), font, 3, color, 3)
-    
 
 max_threads = 1
 os.environ["OMP_NUM_THREADS"] = str(max_threads)
@@ -264,14 +223,6 @@ def run(fps=15, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
     plotdata = [[], []]
     plotx = 0
 
-    #yolo-code
-    net = cv2.dnn.readNet("yolo-obj_final.weights", "yolo-obj.cfg")
-    classes = ['Face', 'Leye', 'Reye', 'Mouth', 'Phone', 'Cigar']
-
-    layer_names = net.getLayerNames()
-    output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
-    colors = np.random.uniform(0, 255, size=(len(classes), 3))
-    #done
     features = ["eye_l", "eye_r", "eyebrow_steepness_l", "eyebrow_updown_l", "eyebrow_quirk_l", "eyebrow_steepness_r", "eyebrow_updown_r", "eyebrow_quirk_r", "mouth_corner_updown_l", "mouth_corner_inout_l", "mouth_corner_updown_r", "mouth_corner_inout_r", "mouth_open", "mouth_wide"]
 
     if log_data != "":
@@ -336,7 +287,6 @@ def run(fps=15, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
             try:
                 inference_start = time.perf_counter()
                 faces = tracker.predict(frame)
-                run_yolo(frame, colors, net, output_layers, classes, fwidth, fheight)
                 if len(faces) > 0:
                     inference_time = (time.perf_counter() - inference_start)
                     total_tracking_time += inference_time
