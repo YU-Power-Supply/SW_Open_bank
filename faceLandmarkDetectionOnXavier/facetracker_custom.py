@@ -54,70 +54,6 @@ if os.name == 'nt':
     parser.add_argument("--blackmagic-options", type=str, help="When set, this additional option string is passed to the blackmagic capture library", default=None)
     parser.add_argument("--priority", type=int, help="When set, the process priority will be changed", default=None, choices=[0, 1, 2, 3, 4, 5])
 '''
-mouth_points = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65]
-r_eye_points = [42, 43, 44, 45, 46, 47]
-l_eye_poits = [36, 37, 38, 39, 40, 41]
-
-def midpoint(p1, p2): 
-    return int((p1[0] + p2[0])/2), int((p1[1] + p2[1])/2) 
-
-def get_face_angle(frame, facial_landmarks): 
-    center_top = (facial_landmarks[mouth_points[12]*2], facial_landmarks[mouth_points[12]*2+1])
-    center_bottom = (facial_landmarks[mouth_points[16]*2], facial_landmarks[mouth_points[16]*2+1])
-    
-    left_point = (facial_landmarks[36*2], facial_landmarks[36*2+1])
-    right_point = (facial_landmarks[45*2], facial_landmarks[45*2+1])
-    
-    left_endpoint = (facial_landmarks[0*2], facial_landmarks[0*2+1])
-    right_endpoint = (facial_landmarks[15*2], facial_landmarks[15*2+1])
-    
-    left_len = left_point[0] - left_endpoint[0] #왼쪽눈끝점 - 왼쪽얼굴끝점
-    right_len = right_endpoint[0] - right_point[0] #오른족 얼굴끝점- 오른쪽눈끝점
-    
-    #hor_line = cv2.line(frame, left_point, right_point, (0, 255, 0), 2)
-    #ver_line = cv2.line(frame, center_top, center_bottom, (0, 255, 0), 2) 
-    hor_line_lenght = hypot( (left_point[0] - right_point[0]), (left_point[1] - right_point[1])) 
-    ver_line_lenght = hypot( (center_top[0] - center_bottom[0]), (center_top[1] - center_bottom[1])) 
-    if ver_line_lenght != 0: 
-        ratio = ver_line_lenght / hor_line_lenght
-    else: 
-        ratio = 60 
-    return ratio 
-
-def get_mouth_ratio(frame, mouth_points, facial_landmarks): 
-    center_top = (facial_landmarks[mouth_points[12]*2], facial_landmarks[mouth_points[12]*2+1])
-    center_bottom = (facial_landmarks[mouth_points[16]*2], facial_landmarks[mouth_points[16]*2+1])
-    
-    left_point = (facial_landmarks[mouth_points[10]*2], facial_landmarks[mouth_points[10]*2+1])
-    right_point = (facial_landmarks[mouth_points[14]*2], facial_landmarks[mouth_points[14]*2+1])
-    
-    #hor_line = cv2.line(frame, left_point, right_point, (0, 255, 0), 2)
-    #ver_line = cv2.line(frame, center_top, center_bottom, (0, 255, 0), 2) 
-    hor_line_lenght = hypot( (left_point[0] - right_point[0]), (left_point[1] - right_point[1])) 
-    ver_line_lenght = hypot( (center_top[0] - center_bottom[0]), (center_top[1] - center_bottom[1])) 
-    if ver_line_lenght != 0: 
-        ratio = ver_line_lenght / hor_line_lenght
-    else: 
-        ratio = 60 
-    return ratio 
-
-def get_blinking_ratio(frame, eye_points, facial_landmarks): 
-    center_top = midpoint(facial_landmarks[eye_points[1]*2:eye_points[1]*2+2], facial_landmarks[eye_points[2]*2:eye_points[2]*2+2])
-    center_bottom = midpoint(facial_landmarks[eye_points[4]*2:eye_points[4]*2+2], facial_landmarks[eye_points[5]*2:eye_points[5]*2+2])
-    
-    left_point = (facial_landmarks[eye_points[0]*2], facial_landmarks[eye_points[0]*2+1])
-    right_point = (facial_landmarks[eye_points[3]*2], facial_landmarks[eye_points[3]*2+1])
-
-    #hor_line = cv2.line(frame, left_point, right_point, (0, 255, 0), 2) 
-    #ver_line = cv2.line(frame, center_top, center_bottom, (0, 255, 0), 2) 
-    hor_line_lenght = hypot( (left_point[0] - right_point[0]), (left_point[1] - right_point[1])) 
-    ver_line_lenght = hypot( (center_top[0] - center_bottom[0]), (center_top[1] - center_bottom[1])) 
-    ratio = hor_line_lenght / ver_line_lenght
-    if ver_line_lenght != 0: 
-        ratio = ver_line_lenght / hor_line_lenght
-    else: 
-        ratio = 60 
-    return ratio 
 
 max_threads = 1
 os.environ["OMP_NUM_THREADS"] = str(max_threads)
@@ -169,7 +105,7 @@ from input_reader import InputReader, VideoReader, DShowCaptureReader, try_int
 from tracker import Tracker, get_model_base_path
 
 
-def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_data="",raw_rgb=0, width=640, height=360, video_out = None, face_id_offset = 0, video_scale=1, threshold=None, max_threads=max_threads, faces=1, discard_after=10, scan_every=3, silent=0, model=3, model_dir=None, gaze_tracking=1, detection_threshold=0.6, scan_retinaface=0, max_feature_updates=900, no_3d_adapt=1, try_hard=0, video_fps = 24, dump_points = ""):
+def run(fps=15, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_data="",raw_rgb=0, width=640, height=360, video_out = None, face_id_offset = 0, video_scale=1, threshold=None, max_threads=max_threads, faces=1, discard_after=10, scan_every=3, silent=0, model=3, model_dir=None, gaze_tracking=1, detection_threshold=0.6, scan_retinaface=0, max_feature_updates=900, no_3d_adapt=1, try_hard=0, video_fps = 24, dump_points = ""):
     
     use_dshowcapture_flag = False
     if os.name == 'nt':
@@ -193,6 +129,7 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
     tracking_time = 0.0
     tracking_frames = 0
     frame_count = 0
+    sleep_check = 0
 
     features = ["eye_l", "eye_r", "eyebrow_steepness_l", "eyebrow_updown_l", "eyebrow_quirk_l", "eyebrow_steepness_r", "eyebrow_updown_r", "eyebrow_quirk_r", "mouth_corner_updown_l", "mouth_corner_inout_l", "mouth_corner_updown_r", "mouth_corner_inout_r", "mouth_open", "mouth_wide"]
 
@@ -219,7 +156,7 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
         need_reinit = 0
         failures = 0
         source_name = input_reader.name
-        A_frame = np.empty((0, 136), dtype=int)
+        A_frame = np.empty((0, 68), dtype=int)
         while input_reader.is_open():
             if not input_reader.is_open() or need_reinit == 1:
                 input_reader = InputReader(capture, raw_rgb, width, height, fps, use_dshowcapture=use_dshowcapture_flag, dcap=dcap)
@@ -285,10 +222,9 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
                             continue
                         if pt_num == 67 and (f.eye_blink[1] < 0.30 or c < 0.20):
                             continue
-                        x = int(x + 0.5)
                         y = int(y + 0.5)
                         
-                        landmarks = np.append(landmarks, [y, x], axis=0)
+                        landmarks = np.append(landmarks, [y], axis=0)
                         if visualize != 0 or not out is None:
                             color = (0, 255, 0)
                             if pt_num >= 66:
@@ -315,17 +251,15 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
                     if not log is None:
                         log.write("\r\n")
                         log.flush()
-                mouths = get_mouth_ratio(frame, mouth_points, landmarks)
-                left_eye_ratio = get_blinking_ratio(frame, l_eye_poits, landmarks) 
-                right_eye_ratio = get_blinking_ratio(frame, r_eye_points, landmarks) 
-                get_face_angle(frame, landmarks)
-                blinking_ratio = (left_eye_ratio + right_eye_ratio) / 2
-                if blinking_ratio < 0.18:
-                    print("don't sleep!!" + str(blinking_ratio))
+
                 
-                if landmarks.size != 136:
-                    landmarks = np.append(landmarks, np.zeros(136-landmarks.size), axis=0)
+                if landmarks.size != 68:
+                    landmarks = np.append(landmarks, np.zeros(68-landmarks.size), axis=0)
                 A_frame = np.vstack([A_frame, landmarks])
+                
+                if A_frame.size / 2040 == 1:
+                    yield A_frame
+                    A_frame = np.empty((0, 68), dtype=int)
 
                 if not out is None:
                     video_frame = frame
@@ -378,7 +312,8 @@ def run(fps=24, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
         average_tracking_time = 1000 * tracking_time / tracking_frames
         print(f"Average tracking time per detected face: {average_tracking_time:.2f} ms")
         print(f"Tracking time: {total_tracking_time:.3f} s\nFrames: {tracking_frames}\nFPS: {tracking_frames/total_tracking_time:.3f}")
-    return A_frame
+    
+
 if __name__ == "__main__":
-    frame = run(visualize=1, max_threads=4, fps=10, capture="video.mp4")
+    frame = run(visualize=1, max_threads=4, capture="video.mp4")
     print(frame, frame.size)
