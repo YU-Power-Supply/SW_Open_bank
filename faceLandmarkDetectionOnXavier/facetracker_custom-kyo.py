@@ -88,7 +88,7 @@ from trackerkyo import Tracker
 org=(50,75) 
 font=cv2.FONT_HERSHEY_SIMPLEX
 
-def run(fps=15, visualize = 0, dcap=None, use_dshowcapture=1, capture="0",raw_rgb=0, width=640, height=360, video_out = None, face_id_offset = 0, video_scale=1, threshold=None, max_threads=max_threads, faces=1, discard_after=10, scan_every=3, silent=0, model=3, model_dir=None, gaze_tracking=1, detection_threshold=0.6, scan_retinaface=0, max_feature_updates=900, no_3d_adapt=1, try_hard=0):
+def run(fps=15, visualize = 0, dcap=None, use_dshowcapture=1, capture="0",raw_rgb=0, width=640, height=360, video_out = None, face_id_offset = 0, video_scale=1, threshold=None, max_threads=max_threads, faces=1, discard_after=10, scan_every=3, silent=0, model=3, model_dir=None, gaze_tracking=1, detection_threshold=0.6, scan_retinaface=0, max_feature_updates=900, try_hard=0):
     
     use_dshowcapture_flag = False
     if os.name == 'nt':
@@ -159,7 +159,7 @@ def run(fps=15, visualize = 0, dcap=None, use_dshowcapture=1, capture="0",raw_rg
             if first:
                 first = False
                 fheight, fwidth, _ = frame.shape
-                tracker = Tracker(fwidth, fheight, threshold=threshold, max_threads=max_threads, max_faces=faces, discard_after=discard_after, scan_every=scan_every, silent=False if silent == 0 else True, model_type=model, model_dir=model_dir, no_gaze=False if gaze_tracking != 0 and model != -1 else True, detection_threshold=detection_threshold, use_retinaface=scan_retinaface, max_feature_updates=max_feature_updates, static_model=True if no_3d_adapt == 1 else False, try_hard=try_hard == 1)
+                tracker = Tracker(fwidth, fheight, threshold=threshold, max_threads=max_threads, max_faces=faces, discard_after=discard_after, scan_every=scan_every, silent=False if silent == 0 else True, model_type=model, model_dir=model_dir, no_gaze=False if gaze_tracking != 0 and model != -1 else True, detection_threshold=detection_threshold, use_retinaface=scan_retinaface, max_feature_updates=max_feature_updates, static_model=False, try_hard=try_hard == 1)
                 if not video_out is None:
                     out = cv2.VideoWriter(video_out, cv2.VideoWriter_fourcc('F','F','V','1'), fps, (fwidth * video_scale, fheight * video_scale))
 
