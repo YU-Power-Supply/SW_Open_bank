@@ -788,7 +788,7 @@ class Tracker():
             crop_info.append((crop_x1, crop_y1, scale_x, scale_y, 0.0 if j >= bonus_cutoff else 0.1))
             num_crops += 1
 
-        start_model = time.perf_counter()
+        #start_model = time.perf_counter()
         outputs = {}
         if num_crops == 1:
             output = self.session.run([], {self.input_name: crops[0]})[0]
@@ -849,7 +849,7 @@ class Tracker():
 
         sorted_results = sorted(best_results.values(), key=lambda x: x[0], reverse=True)[:self.max_faces]
         self.assign_face_info(sorted_results)
-        duration_model = 1000 * (time.perf_counter() - start_model)
+        #duration_model = 1000 * (time.perf_counter() - start_model)
 
         results = []
         detected = []
@@ -887,7 +887,7 @@ class Tracker():
         self.faces = [x for x in self.faces if not np.isnan(np.array(x)).any()]
         self.detected = len(self.faces)
 
-        duration = (time.perf_counter() - start) * 1000
+        #duration = (time.perf_counter() - start) * 1000
         #if not self.silent:
         #    print(f"Took {duration:.2f}ms (detect: {duration_fd:.2f}ms, crop: {duration_pp:.2f}ms, track: {duration_model:.2f}ms")
 
