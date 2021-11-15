@@ -5,13 +5,14 @@ from imutils import face_utils
 
 import time, random, sys, os, copy
 
+import tensorflow
+import imutils
 from tensorflow.keras.layers import Dense, Dropout , Flatten, Conv2D, MaxPool2D
 from tensorflow.keras import Sequential
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import load_model
 
 
-# print("dlib", dlib.__version__, "numpy", np.__version__)
 
 
 def train(trainDataPath, saveModelPath):
@@ -68,74 +69,9 @@ def train(trainDataPath, saveModelPath):
 
     ## Moddel Training
     h = model.fit( pointPerFramePerMotion, groundTruth, epochs = 1000)
-    model.save(savePath)
+    model.save(saveModelPath)
     model.summary()
 
-
-def test(model):
-
-    model = load_model(model)
-    print("")
-    model.summary()
-    print("")
-
-    detector = dlib.get_frontal_face_detector()
-    predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
-
-    keyPointModel = ('models/2018_12_17_22_58_35.h5')
-
-    cap = cv2.VideoCapture(0)
-
-    testPointPerFrames = []
-    startTime = time.time()
-    while cap.isOpened():
-        ret, frame = cap.read()
-
-        if not ret:
-            break
-
-        img = frame.copy()
-        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        faces = detector(gray_img, 1)
-        
-        pointFrame = []
-        for face in faces:
-            shapes = predictor(gray_img, face)
-            shapes = face_utils.shape_to_np(shapes)
-            
-
-            for point in shapes:
-                cv2.circle(img, point, 5, (255, 255, 0))
-
-            for keyPoints in shapes:
-                for keyPoint in keyPoints:
-                    pointFrame.append(keyPoint)
-
-        if len(pointFrame) == 136: # landmark * 2 = 136
-            testPointPerFrames.append(pointFrame)
-            print("Counted Frame Number", len(testPointPerFrames))
-        
-        if len(testPointPerFrames) == 25:
-            # print(testPointPerFrames)
-            testPointPerFrames = tf.constant(testPointPerFrames, dtype = tf.float32)
-            
-            # print(testPointPerFrames.shape) # Dims
-            testPointPerFrames = tf.expand_dims(testPointPerFrames, axis=0)
-            
-            # print(testPointPerFrames.shape) # reshaped Dims
-
-            print(model.predict(testPointPerFrames).argmax(axis =1))
-            endTime = time.time()
-            print("Time: " ,endTime - startTime)
-            
-            testPointPerFrames = []
-
-        
-
-
-        cv2.imshow('result', img)
-        if cv2.waitKey(1) == ord('q'):
-            break
 
 def mkdirs(dirPath, fromNum, toNum):
     for i in range(int(fromNum), int(toNum) +1):
@@ -154,12 +90,7 @@ def dataPreprocessing(imgPath, fromMotion, toMotion):
 
     
     groundTruth = "1"
-    
     motionCnt = 0
-    frameNum = 30
-    keyPointNum = 68
-
-    
  
     for motion in range(int(fromMotion),int(toMotion)+1 ):
         pointPerFrame = []
@@ -200,10 +131,6 @@ def dataPreprocessing(imgPath, fromMotion, toMotion):
         
                         
 if __name__=="__main__":
-
-    model = ""
-    savePath = ""
-
     if len(sys.argv) == 1:
         print("명령 프롬프트로 실행하세요")
         exit(0)
@@ -212,9 +139,7 @@ if __name__=="__main__":
 
     elif sys.argv[1] == "train": # [train] [trainDataPath] [saveModelPath]
         train(sys.argv[2], sys.argv[3])
-    elif sys.argv[1] == "test": # [test] [modelPath] 
-        model = f"{sys.argv[2]}"
-        test(model)
+
     elif sys.argv[1] == 'data': # [data] [imgsPath] [fromMotion] [toMotion]
         dataPreprocessing(sys.argv[2], sys.argv[3], sys.argv[4])
 
