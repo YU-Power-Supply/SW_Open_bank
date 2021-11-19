@@ -224,7 +224,7 @@ def run(fps=15, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_d
                             continue
                         y = int(y + 0.5)
                         
-                        landmarks = np.append(landmarks/fheight, [y], axis=0)
+                        landmarks = np.append(landmarks, [y/fheight], axis=0)
                         if visualize != 0 or not out is None:
                             color = (0, 255, 0)
                             if pt_num >= 66:
