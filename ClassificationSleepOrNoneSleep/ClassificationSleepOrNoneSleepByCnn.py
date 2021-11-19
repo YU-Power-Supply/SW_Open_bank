@@ -42,7 +42,7 @@ def train(trainDataPath, saveModelPath):
 
     groundTruth = tf.constant(groundTruth, dtype = tf.float32) # sleep = 1, didn`t sleep = 0
     print("groundTruth`s dims : ", tf.shape(groundTruth))
-
+    
     # ''' random data generator
     # testX = tf.constant([[[random.randrange(1, 10) for _ in range(keyPointNum)] for _ in range(frameNum)] for _ in range(2)], dtype = tf.float32) # prame per points
     # testY = tf.constant([ [random.randrange(0, 2) ]for _ in range(2)]) # sleep = 1, didn`t sleep = 0
@@ -70,7 +70,7 @@ def train(trainDataPath, saveModelPath):
         Dropout(rate = 0.5),
         Dense(units = 256, activation = 'relu'),
         Dropout(rate = 0.5),
-        Dense(units = 2, activation = 'sigmoid')
+        Dense(units = 2, activation = 'softmax')
         
 
     ])
@@ -80,7 +80,7 @@ def train(trainDataPath, saveModelPath):
                   metrics=['acc'] )  # ! gradinet descent 종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
 
     ## Moddel Training
-    model.fit( pointPerFramePerMotion, groundTruth, epochs = 1000)
+    model.fit( pointPerFramePerMotion, groundTruth, epochs = 10000)
     model.save(saveModelPath)
     
     model.summary()
@@ -102,7 +102,7 @@ def dataPreprocessing(imgPath, fromMotion, toMotion):
     keyPointModel = ('models/2018_12_17_22_58_35.h5')
 
     
-    groundTruth = "0"
+    groundTruth = "1"
     motionCnt = 0
  
     for motion in range(int(fromMotion),int(toMotion)+1 ):
@@ -119,6 +119,7 @@ def dataPreprocessing(imgPath, fromMotion, toMotion):
 
         for frame in frameList: 
             img = cv2.imread(f"{imgPath}/{motion}/{frame}")
+            height, width, color =  img.shape # get img shape for nomalization
             faces = detector(img, 1)
             
             if(len(faces) == 0) : 
@@ -132,13 +133,13 @@ def dataPreprocessing(imgPath, fromMotion, toMotion):
                 with open(f"{imgPath}/{motion}.txt", "a", encoding = 'UTF8') as f:
                     f.write("\n")
                     for pointY in shapes[:,1]:
-                        f.write(str(pointY) + " ")
+                        f.write(str(pointY/height) + " ")
                 
         for _ in range(30-frameCnt):
             with open(f"{imgPath}/{motion}.txt", "a", encoding = 'UTF8') as f:
                     f.write("\n")
                     for pointY in shapes[:,1]:
-                        f.write(str(pointY) + " ")
+                        f.write(str(pointY/height) + " ")
         print(f"motion[{motion}] : detected total {frameCnt} motions \ntotal {motionCnt} motions completed ")
         
                         
