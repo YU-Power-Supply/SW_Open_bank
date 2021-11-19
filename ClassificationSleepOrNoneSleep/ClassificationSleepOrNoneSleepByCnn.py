@@ -66,13 +66,14 @@ def train(trainDataPath, saveModelPath):
         Dropout(rate = 0.5),
 
         Flatten(),
-        Dense(units = 512, activation = 'relu'),
-        Dropout(rate = 0.5),
         Dense(units = 256, activation = 'relu'),
+        Dropout(rate = 0.5),
+        Dense(units = 64, activation = 'relu'),
+        Dropout(rate = 0.5),
+        Dense(units = 16, activation = 'relu'),
         Dropout(rate = 0.5),
         Dense(units = 2, activation = 'softmax')
         
-
     ])
 
     # model.add( Dense( units= 1,  activation='sigmoid') )
