@@ -160,19 +160,19 @@ def get_face_angle(frame, facial_landmarks):
     cv2.circle(frame, left_toppoint, 5, (0, 255, 0), 2)
     cv2.circle(frame, right_toppoint, 5, (0, 255, 0), 2)
     
-    
-    if left_len < 0 or right_len < 0:
-        cv2.putText(frame,"yaw over!!",org,font,1,(255,0,255),2)
-        print("yaw over!!")
+    if midpoint(left_eyebrow, right_eyebrow)[1] > midpoint(left_toppoint, right_toppoint)[1]:
+        cv2.putText(frame,"pitch over!!",org,font,1,(0,255,255),2)
+        print("pitch over!!")
         return True
     if abs(right_point[1] - left_point[1]) / (right_point[0]-left_point[0]) > 0.176: # tan(10도) = 0.176 => 10도이상 넘어가면 감지
         cv2.putText(frame,"roll over!!",org,font,1,(255,255,0),2)
         print("roll over!!")
         return True
-    if midpoint(left_eyebrow, right_eyebrow)[1] > midpoint(left_toppoint, right_toppoint)[1]:
-        cv2.putText(frame,"pitch over!!",org,font,1,(0,255,255),2)
-        print("pitch over!!")
+    if left_len < 0 or right_len < 0:
+        cv2.putText(frame,"yaw over!!",org,font,1,(255,0,255),2)
+        print("yaw over!!")
         return True
+
     
     return False
 
