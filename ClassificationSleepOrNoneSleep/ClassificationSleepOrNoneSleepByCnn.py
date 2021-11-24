@@ -30,7 +30,7 @@ def train(trainDataPath, saveModelPath):
             for frames in file:
                 pointX = frames.split()
                 if len(pointX) != keyPointNum: print(f"{file}") # CHECK 68 POINT
-                pointX = list(map(int, pointX)) # convert str to integer
+                pointX = list(map(float, pointX)) # convert str to integer
                 pointPerFrame.append(pointX)
             pointPerFramePerMotion.append(pointPerFrame)
 
@@ -42,6 +42,8 @@ def train(trainDataPath, saveModelPath):
 
     groundTruth = tf.constant(groundTruth, dtype = tf.float32) # sleep = 1, didn`t sleep = 0
     print("groundTruth`s dims : ", tf.shape(groundTruth))
+    print("pointPerFramePerMotion`s dims : ", tf.shape(pointPerFramePerMotion))
+    
     
     # ''' random data generator
     # testX = tf.constant([[[random.randrange(1, 10) for _ in range(keyPointNum)] for _ in range(frameNum)] for _ in range(2)], dtype = tf.float32) # prame per points
@@ -81,7 +83,7 @@ def train(trainDataPath, saveModelPath):
                   metrics=['acc'] )  # ! gradinet descent 종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
 
     ## Moddel Training
-    model.fit( pointPerFramePerMotion, groundTruth, epochs = 10000)
+    model.fit( pointPerFramePerMotion, groundTruth, epochs = 2000)
     model.save(saveModelPath)
     
     model.summary()
