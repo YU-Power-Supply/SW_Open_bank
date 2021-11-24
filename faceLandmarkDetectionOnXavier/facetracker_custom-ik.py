@@ -207,6 +207,23 @@ def eye_checker(frame, l_eye_points, r_eye_points, facial_landmarks, sleep_check
     except:
         return 0, 0
 
+def get_mouth_ratio(frame, mouth_points, facial_landmarks): 
+    center_top = (facial_landmarks[mouth_points[12]*2], facial_landmarks[mouth_points[12]*2+1])
+    center_bottom = (facial_landmarks[mouth_points[16]*2], facial_landmarks[mouth_points[16]*2+1])
+
+    left_point = (facial_landmarks[mouth_points[10]*2], facial_landmarks[mouth_points[10]*2+1])
+    right_point = (facial_landmarks[mouth_points[14]*2], facial_landmarks[mouth_points[14]*2+1])
+
+    #hor_line = cv2.line(frame, left_point, right_point, (0, 255, 0), 2)
+    #ver_line = cv2.line(frame, center_top, center_bottom, (0, 255, 0), 2) 
+    hor_line_lenght = hypot( (left_point[0] - right_point[0]), (left_point[1] - right_point[1])) 
+    ver_line_lenght = hypot( (center_top[0] - center_bottom[0]), (center_top[1] - center_bottom[1])) 
+    if ver_line_lenght != 0: 
+        ratio = ver_line_lenght / hor_line_lenght
+    else:
+        ratio = -1
+    return ratio 
+
 import numpy as np
 import time
 #import cv2
@@ -296,7 +313,6 @@ try:
     need_reinit = 0
     failures = 0
     source_name = input_reader.name
-    A_frame = np.empty((0, 136), dtype=int)
     while repeat or input_reader.is_open():
         if not input_reader.is_open() or need_reinit == 1:
             input_reader = InputReader(args.capture, args.raw_rgb, args.width, args.height, fps, use_dshowcapture=use_dshowcapture_flag, dcap=dcap)
@@ -485,10 +501,6 @@ try:
             if sleep_check > head_check:
                 cv2.putText(frame,"Wake up!!",(50, 50),font,1,(255,0,0),2)
                 print("Wake UP!!")
-
-            if landmarks.size != 136:
-                    landmarks = np.append(landmarks, np.zeros(136-landmarks.size), axis=0)
-            A_frame = np.vstack([A_frame, landmarks])
 
         except Exception as e:
             if e.__class__ == KeyboardInterrupt:
