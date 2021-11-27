@@ -10,10 +10,6 @@ from tensorflow.keras import Sequential
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import load_model
 
-
-# print("dlib", dlib.__version__, "numpy", np.__version__)
-
-
 def train(trainDataPath, saveModelPath):
     pointPerFramePerMotion = []
     frameNum = 30
@@ -43,18 +39,7 @@ def train(trainDataPath, saveModelPath):
     groundTruth = tf.constant(groundTruth, dtype = tf.float32) # sleep = 1, didn`t sleep = 0
     print("groundTruth`s dims : ", tf.shape(groundTruth))
     print("pointPerFramePerMotion`s dims : ", tf.shape(pointPerFramePerMotion))
-    
-    
-    # ''' random data generator
-    # testX = tf.constant([[[random.randrange(1, 10) for _ in range(keyPointNum)] for _ in range(frameNum)] for _ in range(2)], dtype = tf.float32) # prame per points
-    # testY = tf.constant([ [random.randrange(0, 2) ]for _ in range(2)]) # sleep = 1, didn`t sleep = 0
-    # 
-    # print(tf.shape(testX))
-    # print(tf.shape(testY))
-    # '''
 
-
-    # Training Model Define
     # Training Model Define ... VGGNet style 14 Layerts network model
     model = Sequential([
         Conv2D(input_shape = (frameNum, keyPointNum, 1), kernel_size = (3, 3), filters = 32, padding = 'same', activation = 'relu'),
@@ -78,7 +63,6 @@ def train(trainDataPath, saveModelPath):
         
     ])
 
-    # model.add( Dense( units= 1,  activation='sigmoid') )
     model.compile( loss='sparse_categorical_crossentropy', optimizer="adam",
                   metrics=['acc'] )  # ! gradinet descent 종류 더 알아보기, sparse_categorical_crossentropy 등등 더 있음
 
@@ -101,7 +85,7 @@ def dataPreprocessing(imgPath, fromMotion, toMotion):
     
     # face detect && find keypoints on landmark 
     detector = dlib.get_frontal_face_detector()
-    predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
+    predictor = dlib.shape_predictor('models/shape_predictor_68_face_landmarks.dat')
     keyPointModel = ('models/2018_12_17_22_58_35.h5')
 
     
