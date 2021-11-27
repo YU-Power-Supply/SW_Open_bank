@@ -19,17 +19,16 @@ if __name__=="__main__":
     model.summary() # model Info
     
     startTime = time.time()
-    print(startTime)
     frameCnt = 0
     for Y_Data_30_Frames in lg.run(visualize=1, max_threads=4, capture=0):
         frameCnt += 1
         classificationSleepOrNonsleep(Y_Data_30_Frames)
-
+        
+        # FPS Calcurator
+        '''
         presendTime = time.time() - startTime 
         if presendTime > 6:
             print(f"Tracking time : {presendTime:.3}")
             print(f"Frames : {frameCnt*30}")
             print(f"FPS : {frameCnt*30/presendTime:.3}")
-            print("1111")
-
-    
+        '''
