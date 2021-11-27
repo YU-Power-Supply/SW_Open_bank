@@ -102,7 +102,7 @@ import cv2
 import struct
 import json
 from input_reader import InputReader, VideoReader, DShowCaptureReader, try_int
-from tracker import Tracker, get_model_base_path
+from tracker2 import Tracker, get_model_base_path
 
 
 def run(fps=15, visualize = 0, dcap=None, use_dshowcapture=1, capture="0", log_data="",raw_rgb=0, width=640, height=360, video_out = None, face_id_offset = 0, video_scale=1, threshold=None, max_threads=max_threads, faces=1, discard_after=10, scan_every=3, silent=0, model=3, model_dir=None, gaze_tracking=1, detection_threshold=0.6, scan_retinaface=0, max_feature_updates=900, no_3d_adapt=1, try_hard=0, video_fps = 24, dump_points = ""):
