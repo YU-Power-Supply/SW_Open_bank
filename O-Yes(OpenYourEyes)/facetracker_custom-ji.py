@@ -14,7 +14,7 @@ def classificationSleepOrNonsleep(Y_Data_30_Frames):
     print(f"Sleep [{(h[0][1]*100)//1}%]") if h.argmax() == 1 else print(f"NO Sleep [{(h[0][0])*100//1}%]")
     
 if __name__=="__main__":
-    model = "output.h5"
+    model = "models/output.h5"
     model = load_model(model)
     model.summary() # model Info
     
