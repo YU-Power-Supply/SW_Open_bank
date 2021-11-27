@@ -131,7 +131,7 @@ import numpy as np
 import time
 import socket
 from input_reader import InputReader, VideoReader, try_int
-from trackerkyo import Tracker, get_model_base_path
+from tracker import Tracker, get_model_base_path
 org=(50,75) 
 font=cv2.FONT_HERSHEY_SIMPLEX   
 
