@@ -1,4 +1,4 @@
-import facetracker_custom as fc
+import landmark_generator as lg
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import load_model
@@ -21,7 +21,7 @@ if __name__=="__main__":
     startTime = time.time()
     print(startTime)
     frameCnt = 0
-    for Y_Data_30_Frames in fc.run(visualize=1, max_threads=4, capture=0):
+    for Y_Data_30_Frames in lg.run(visualize=1, max_threads=4, capture=0):
         frameCnt += 1
         classificationSleepOrNonsleep(Y_Data_30_Frames)
 
