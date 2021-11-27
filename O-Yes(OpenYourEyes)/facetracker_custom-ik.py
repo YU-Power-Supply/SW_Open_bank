@@ -10,23 +10,14 @@ from math import hypot
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-i", "--ip", help="Set IP address for sending tracking data", default="127.0.0.1")
 parser.add_argument("-p", "--port", type=int, help="Set port for sending tracking data", default=11573)
-if os.name == 'nt':
-    parser.add_argument("-l", "--list-cameras", type=int, help="Set this to 1 to list the available cameras and quit, set this to 2 or higher to output only the names", default=0)
-    parser.add_argument("-a", "--list-dcaps", type=int, help="Set this to -1 to list all cameras and their available capabilities, set this to a camera id to list that camera's capabilities", default=None)
-    parser.add_argument("-W", "--width", type=int, help="Set camera and raw RGB width", default=640)
-    parser.add_argument("-H", "--height", type=int, help="Set camera and raw RGB height", default=360)
-    parser.add_argument("-F", "--fps", type=int, help="Set camera frames per second", default=24)
-    parser.add_argument("-D", "--dcap", type=int, help="Set which device capability line to use or -1 to use the default camera settings", default=None)
-    parser.add_argument("-B", "--blackmagic", type=int, help="When set to 1, special support for Blackmagic devices is enabled", default=0)
-else:
-    parser.add_argument("-W", "--width", type=int, help="Set raw RGB width", default=640)
-    parser.add_argument("-H", "--height", type=int, help="Set raw RGB height", default=360)
+parser.add_argument("-W", "--width", type=int, help="Set raw RGB width", default=640)
+parser.add_argument("-H", "--height", type=int, help="Set raw RGB height", default=360)
 parser.add_argument("-c", "--capture", help="Set camera ID (0, 1...) or video file", default="0")
 parser.add_argument("-M", "--mirror-input", action="store_true", help="Process a mirror image of the input video")
 parser.add_argument("-m", "--max-threads", type=int, help="Set the maximum number of threads", default=1)
 parser.add_argument("-t", "--threshold", type=float, help="Set minimum confidence threshold for face tracking", default=None)
 parser.add_argument("-d", "--detection-threshold", type=float, help="Set minimum confidence threshold for face detection", default=0.6)
-parser.add_argument("-v", "--visualize", type=int, help="Set this to 1 to visualize the tracking, to 2 to also show face ids, to 3 to add confidence values or to 4 to add numbers to the point display", default=0)
+parser.add_argument("-v", "--visualize", type=int, help="Set this to 1 to visualize the tracking, to 2 to also show face ids, to 3 to add confidence values or to 4 to add numbers to the point display", default=1)
 parser.add_argument("-P", "--pnp-points", type=int, help="Set this to 1 to add the 3D fitting points to the visualization", default=0)
 parser.add_argument("-s", "--silent", type=int, help="Set this to 1 to prevent text output on the console", default=0)
 parser.add_argument("--faces", type=int, help="Set the maximum number of faces (slow)", default=1)
@@ -40,90 +31,17 @@ parser.add_argument("--video-out", help="Set this to the filename of an AVI file
 parser.add_argument("--video-scale", type=int, help="This is a resolution scale factor applied to the saved AVI file", default=1, choices=[1,2,3,4])
 parser.add_argument("--video-fps", type=float, help="This sets the frame rate of the output AVI file", default=24)
 parser.add_argument("--raw-rgb", type=int, help="When this is set, raw RGB frames of the size given with \"-W\" and \"-H\" are read from standard input instead of reading a video", default=0)
-parser.add_argument("--log-data", help="You can set a filename to which tracking data will be logged here", default="")
-parser.add_argument("--log-output", help="You can set a filename to console output will be logged here", default="")
-parser.add_argument("--model", type=int, help="This can be used to select the tracking model. Higher numbers are models with better tracking quality, but slower speed, except for model 4, which is wink optimized. Models 1 and 0 tend to be too rigid for expression and blink detection. Model -2 is roughly equivalent to model 1, but faster. Model -3 is between models 0 and -1.", default=3, choices=[-3, -2, -1, 0, 1, 2, 3, 4])
+parser.add_argument("--model", type=int, help="This can be used to select the tracking model. Higher numbers are models with better tracking quality, but slower speed, except for model 4, which is wink optimized. Models 1 and 0 tend to be too rigid for expression and blink detection. Model -2 is roughly equivalent to model 1, but faster. Model -3 is between models 0 and -1.", default=-3, choices=[-3, -2, -1, 0, 1, 2, 3, 4])
 parser.add_argument("--model-dir", help="This can be used to specify the path to the directory containing the .onnx model files", default=None)
 parser.add_argument("--gaze-tracking", type=int, help="When set to 1, experimental blink detection and gaze tracking are enabled, which makes things slightly slower", default=1)
 parser.add_argument("--face-id-offset", type=int, help="When set, this offset is added to all face ids, which can be useful for mixing tracking data from multiple network sources", default=0)
 parser.add_argument("--repeat-video", type=int, help="When set to 1 and a video file was specified with -c, the tracker will loop the video until interrupted", default=0)
 parser.add_argument("--dump-points", type=str, help="When set to a filename, the current face 3D points are made symmetric and dumped to the given file when quitting the visualization with the \"q\" key", default="")
 parser.add_argument("--benchmark", type=int, help="When set to 1, the different tracking models are benchmarked, starting with the best and ending with the fastest and with gaze tracking disabled for models with negative IDs", default=0)
-if os.name == 'nt':
-    parser.add_argument("--use-dshowcapture", type=int, help="When set to 1, libdshowcapture will be used for video input instead of OpenCV", default=1)
-    parser.add_argument("--blackmagic-options", type=str, help="When set, this additional option string is passed to the blackmagic capture library", default=None)
-    parser.add_argument("--priority", type=int, help="When set, the process priority will be changed", default=None, choices=[0, 1, 2, 3, 4, 5])
 
 args = parser.parse_args()
 
 os.environ["OMP_NUM_THREADS"] = str(args.max_threads)
-
-class OutputLog(object):
-    def __init__(self, fh, output):
-        self.fh = fh
-        self.output = output
-    def write(self, buf):
-        if not self.fh is None:
-            self.fh.write(buf)
-        self.output.write(buf)
-        self.flush()
-    def flush(self):
-        if not self.fh is None:
-            self.fh.flush()
-        self.output.flush()
-output_logfile = None
-if args.log_output != "":
-    output_logfile = open(args.log_output, "w")
-sys.stdout = OutputLog(output_logfile, sys.stdout)
-sys.stderr = OutputLog(output_logfile, sys.stderr)
-
-if os.name == 'nt':
-    import dshowcapture
-    if args.blackmagic == 1:
-        dshowcapture.set_bm_enabled(True)
-    if not args.blackmagic_options is None:
-        dshowcapture.set_options(args.blackmagic_options)
-    if not args.priority is None:
-        import psutil
-        classes = [psutil.IDLE_PRIORITY_CLASS, psutil.BELOW_NORMAL_PRIORITY_CLASS, psutil.NORMAL_PRIORITY_CLASS, psutil.ABOVE_NORMAL_PRIORITY_CLASS, psutil.HIGH_PRIORITY_CLASS, psutil.REALTIME_PRIORITY_CLASS]
-        p = psutil.Process(os.getpid())
-        p.nice(classes[args.priority])
-
-if os.name == 'nt' and (args.list_cameras > 0 or not args.list_dcaps is None):
-    cap = dshowcapture.DShowCapture()
-    info = cap.get_info()
-    unit = 10000000.;
-    if not args.list_dcaps is None:
-        formats = {0: "Any", 1: "Unknown", 100: "ARGB", 101: "XRGB", 200: "I420", 201: "NV12", 202: "YV12", 203: "Y800", 300: "YVYU", 301: "YUY2", 302: "UYVY", 303: "HDYC (Unsupported)", 400: "MJPEG", 401: "H264" }
-        for cam in info:
-            if args.list_dcaps == -1:
-                type = ""
-                if cam['type'] == "Blackmagic":
-                    type = "Blackmagic: "
-                print(f"{cam['index']}: {type}{cam['name']}")
-            if args.list_dcaps != -1 and args.list_dcaps != cam['index']:
-                continue
-            for caps in cam['caps']:
-                format = caps['format']
-                if caps['format'] in formats:
-                    format = formats[caps['format']]
-                if caps['minCX'] == caps['maxCX'] and caps['minCY'] == caps['maxCY']:
-                    print(f"    {caps['id']}: Resolution: {caps['minCX']}x{caps['minCY']} FPS: {unit/caps['maxInterval']:.3f}-{unit/caps['minInterval']:.3f} Format: {format}")
-                else:
-                    print(f"    {caps['id']}: Resolution: {caps['minCX']}x{caps['minCY']}-{caps['maxCX']}x{caps['maxCY']} FPS: {unit/caps['maxInterval']:.3f}-{unit/caps['minInterval']:.3f} Format: {format}")
-    else:
-        if args.list_cameras == 1:
-            print("Available cameras:")
-        for cam in info:
-            type = ""
-            if cam['type'] == "Blackmagic":
-                type = "Blackmagic: "
-            if args.list_cameras == 1:
-                print(f"{cam['index']}: {type}{cam['name']}")
-            else:
-                print(f"{type}{cam['name']}")
-    cap.destroy_capture()
-    sys.exit(0)
 
 mouth_points = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65]
 r_eye_points = [42, 43, 44, 45, 46, 47]
@@ -159,19 +77,19 @@ def get_face_angle(frame, facial_landmarks):
     cv2.circle(frame, left_toppoint, 5, (0, 255, 0), 2)
     cv2.circle(frame, right_toppoint, 5, (0, 255, 0), 2)
     
-    if midpoint(left_eyebrow, right_eyebrow)[1] > midpoint(left_toppoint, right_toppoint)[1]:
-        cv2.putText(frame,"pitch over!!",org,font,1,(0,255,255),2)
-        print("pitch over!!")
+    
+    if left_len < 0 or right_len < 0:
+        cv2.putText(frame,"yaw over!!",org,font,1,(255,0,255),2)
+        print("yaw over!!")
         return True
     if abs(right_point[1] - left_point[1]) / (right_point[0]-left_point[0]) > 0.176: # tan(10도) = 0.176 => 10도이상 넘어가면 감지
         cv2.putText(frame,"roll over!!",org,font,1,(255,255,0),2)
         print("roll over!!")
         return True
-    if left_len < 0 or right_len < 0:
-        cv2.putText(frame,"yaw over!!",org,font,1,(255,0,255),2)
-        print("yaw over!!")
+    if midpoint(left_eyebrow, right_eyebrow)[1] > midpoint(left_toppoint, right_toppoint)[1]:
+        cv2.putText(frame,"pitch over!!",org,font,1,(0,255,255),2)
+        print("pitch over!!")
         return True
-
     
     return False
 
@@ -206,33 +124,16 @@ def eye_checker(frame, l_eye_points, r_eye_points, facial_landmarks, sleep_check
     except:
         return 0, 0
 
-def get_mouth_ratio(frame, mouth_points, facial_landmarks): 
-    center_top = (facial_landmarks[mouth_points[12]*2], facial_landmarks[mouth_points[12]*2+1])
-    center_bottom = (facial_landmarks[mouth_points[16]*2], facial_landmarks[mouth_points[16]*2+1])
-
-    left_point = (facial_landmarks[mouth_points[10]*2], facial_landmarks[mouth_points[10]*2+1])
-    right_point = (facial_landmarks[mouth_points[14]*2], facial_landmarks[mouth_points[14]*2+1])
-
-    #hor_line = cv2.line(frame, left_point, right_point, (0, 255, 0), 2)
-    #ver_line = cv2.line(frame, center_top, center_bottom, (0, 255, 0), 2) 
-    hor_line_lenght = hypot( (left_point[0] - right_point[0]), (left_point[1] - right_point[1])) 
-    ver_line_lenght = hypot( (center_top[0] - center_bottom[0]), (center_top[1] - center_bottom[1])) 
-    if ver_line_lenght != 0: 
-        ratio = ver_line_lenght / hor_line_lenght
-    else:
-        ratio = -1
-    return ratio 
+max_threads = 1
+os.environ["OMP_NUM_THREADS"] = str(max_threads)
 
 import numpy as np
 import time
-#import cv2
 import socket
-import struct
-import json
-from input_reader import InputReader, VideoReader, DShowCaptureReader, try_int
+from input_reader import InputReader, VideoReader, try_int
 from trackerkyo import Tracker, get_model_base_path
 org=(50,75) 
-font=cv2.FONT_HERSHEY_SIMPLEX
+font=cv2.FONT_HERSHEY_SIMPLEX   
 
 if args.benchmark > 0:
     model_base_path = get_model_base_path(args.model_dir)
@@ -259,19 +160,11 @@ if args.faces >= 40:
 fps = 24
 dcap = None
 use_dshowcapture_flag = False
-if os.name == 'nt':
-    fps = args.fps
-    dcap = args.dcap
-    use_dshowcapture_flag = True if args.use_dshowcapture == 1 else False
-    input_reader = InputReader(args.capture, args.raw_rgb, args.width, args.height, fps, use_dshowcapture=use_dshowcapture_flag, dcap=dcap)
-    if args.dcap == -1 and type(input_reader) == DShowCaptureReader:
-        fps = min(fps, input_reader.device.get_fps())
-else:
-    input_reader = InputReader(args.capture, args.raw_rgb, args.width, args.height, fps, use_dshowcapture=use_dshowcapture_flag)
+
+input_reader = InputReader(args.capture, args.raw_rgb, args.width, args.height, fps, use_dshowcapture=use_dshowcapture_flag)
 if type(input_reader.reader) == VideoReader:
     fps = 0
 
-log = None
 out = None
 first = True
 height = 0
@@ -286,23 +179,14 @@ sleep_check = 0
 plotdata = [[], []]
 plotx = 0
 
+
 features = ["eye_l", "eye_r", "eyebrow_steepness_l", "eyebrow_updown_l", "eyebrow_quirk_l", "eyebrow_steepness_r", "eyebrow_updown_r", "eyebrow_quirk_r", "mouth_corner_updown_l", "mouth_corner_inout_l", "mouth_corner_updown_r", "mouth_corner_inout_r", "mouth_open", "mouth_wide"]
 
-if args.log_data != "":
-    log = open(args.log_data, "w")
-    log.write("Frame,Time,Width,Height,FPS,Face,FaceID,RightOpen,LeftOpen,AverageConfidence,Success3D,PnPError,RotationQuat.X,RotationQuat.Y,RotationQuat.Z,RotationQuat.W,Euler.X,Euler.Y,Euler.Z,RVec.X,RVec.Y,RVec.Z,TVec.X,TVec.Y,TVec.Z")
-    for i in range(66):
-        log.write(f",Landmark[{i}].X,Landmark[{i}].Y,Landmark[{i}].Confidence")
-    for i in range(66):
-        log.write(f",Point3D[{i}].X,Point3D[{i}].Y,Point3D[{i}].Z")
-    for feature in features:
-        log.write(f",{feature}")
-    log.write("\r\n")
-    log.flush()
 
 is_camera = args.capture == str(try_int(args.capture))
 
 try:
+    startTime = time.time()
     attempt = 0
     frame_time = time.perf_counter()
     target_duration = 0
@@ -312,6 +196,7 @@ try:
     need_reinit = 0
     failures = 0
     source_name = input_reader.name
+    A_frame = np.empty((0, 136), dtype=int)
     while repeat or input_reader.is_open():
         if not input_reader.is_open() or need_reinit == 1:
             input_reader = InputReader(args.capture, args.raw_rgb, args.width, args.height, fps, use_dshowcapture=use_dshowcapture_flag, dcap=dcap)
@@ -420,14 +305,6 @@ try:
                     if not feature in f.current_features:
                         f.current_features[feature] = 0
 
-                    if not log is None:
-                        log.write(f",{f.current_features[feature]}")
-                if not log is None:
-                    log.write("\r\n")
-                    log.flush()
-
-                #print(landmarks)
-
             if not out is None:
                 video_frame = frame
                 if args.video_scale != 1:
@@ -501,6 +378,10 @@ try:
                 cv2.putText(frame,"Wake up!!",(50, 50),font,1,(255,0,0),2)
                 print("Wake UP!!")
 
+            if landmarks.size != 136:
+                    landmarks = np.append(landmarks, np.zeros(136-landmarks.size), axis=0)
+            A_frame = np.vstack([A_frame, landmarks])
+
         except Exception as e:
             if e.__class__ == KeyboardInterrupt:
                 if args.silent == 0:
@@ -521,12 +402,13 @@ try:
                 collected = True
             duration = time.perf_counter() - frame_time
             sleep_time = target_duration - duration
-            if sleep_time > 0:
+            if sleep_time > 0:                
                 time.sleep(sleep_time)
             duration = time.perf_counter() - frame_time
         frame_time = time.perf_counter()
 except KeyboardInterrupt:
     if args.silent == 0:
+        endTime = time.time()
         print("Quitting")
 
 input_reader.close()
@@ -537,4 +419,4 @@ cv2.destroyAllWindows()
 if args.silent == 0 and tracking_frames > 0:
     average_tracking_time = 1000 * tracking_time / tracking_frames
     print(f"Average tracking time per detected face: {average_tracking_time:.2f} ms")
-    print(f"Tracking time: {total_tracking_time:.3f} s\nFrames: {tracking_frames}\nFPS: {tracking_frames/total_tracking_time:.3f}")
+    print(f"Tracking time: {(endTime-startTime):.3f} s\nFrames: {tracking_frames}\nFPS: {tracking_frames/(endTime-startTime):.3f}")
